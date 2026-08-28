@@ -3,106 +3,465 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Blueprint Wireframe Builder</title>
+    <title>3D Multi-Object Blueprint Builder - Slices, Groups & Symmetric Mirror</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <style>
-        canvas { touch-action: none; }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <style> canvas { touch-action: none; } </style>
 </head>
-<body class="bg-slate-900 text-slate-100 h-screen flex flex-col font-sans">
+<body class="bg-slate-900 text-slate-100 h-screen flex flex-col font-sans overflow-hidden">
 
-    <!-- Header / Toolbar -->
-    <header class="bg-slate-800 border-b border-slate-700 p-3 flex flex-wrap items-center justify-between gap-2">
-        <h1 class="text-lg font-bold text-sky-400">3D Wireframe Builder</h1>
+    <header class="bg-slate-800 border-b border-slate-700 p-3 flex items-center justify-between gap-4 overflow-x-auto">
+        <h1 class="text-lg font-bold text-sky-400 whitespace-nowrap">مخطط (الخطوط، المجسم، والمقاطع والمجموعات والمرآة)</h1>
         
-        <div class="flex items-center gap-2">
-            <button id="btnUndo" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm">تراجع (Undo)</button>
-            <button id="btnClearCanvas" class="bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-sm">مسح الشاشة</button>
-            <button id="btnClearAll" class="bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded text-sm">مسح الكل</button>
-            <button id="btnExport" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-1 rounded text-sm font-bold">تصدير OBJ</button>
+        <div class="flex items-center gap-2 flex-nowrap">
+            <button id="btnModeDraw" class="bg-sky-600 hover:bg-sky-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap">1. الخطوط (رسم)</button>
+            <button id="btnModeEdit" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm font-bold whitespace-nowrap text-amber-400">تعديل النقاط ✏️</button>
+            <button id="btnModePan" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">تحريك الخلفية</button>
+            <button id="btnMode3DDrag" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm font-bold whitespace-nowrap text-emerald-400">تحريك 3D ✋</button>
+            
+            <div class="h-4 w-px bg-slate-700 mx-1 flex-shrink-0"></div>
+
+            <button id="btnOrientVert" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap">واجهة (Front)</button>
+            <button id="btnOrientHoriz" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">أفقي (Top)</button>
+
+            <div class="h-4 w-px bg-slate-700 mx-1 flex-shrink-0"></div>
+
+            <button id="btnFullscreen" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">ملء الشاشة ⛶</button>
+            <button id="btnUndo" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">تراجع</button>
+            <button id="btnClearAll" class="bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded text-sm whitespace-nowrap">مسح الكل</button>
         </div>
     </header>
 
-    <!-- Main Workspace -->
     <div class="flex-1 flex overflow-hidden">
         
-        <!-- Sidebar Controls -->
-        <aside class="w-72 bg-slate-800 border-l border-slate-700 p-4 flex flex-col gap-4 overflow-y-auto">
+        <aside class="w-80 bg-slate-800 border-l border-slate-700 p-4 flex flex-col gap-4 overflow-y-auto flex-shrink-0">
             
-            <!-- Image Controls -->
-            <div class="border-b border-slate-700 pb-3">
-                <label class="block text-xs font-semibold mb-1 text-slate-400">تحميل الصورة المرجعية:</label>
-                <input type="file" id="imgLoader" accept="image/*" class="text-xs text-slate-300 file:bg-sky-600 file:border-0 file:rounded file:px-2 file:py-1 file:text-white cursor-pointer w-full">
+            <!-- قسم المرآة التناظرية الجديدة -->
+            <div class="border-b border-slate-700 pb-3 space-y-2 bg-slate-900/40 p-2.5 rounded-lg border border-sky-500/30">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-sky-400 flex items-center gap-1">🪞 مرآة التناظر (Symmetric Mirror):</span>
+                    <input type="checkbox" id="chkMirrorEnable" class="w-4 h-4 rounded text-sky-500 bg-slate-900 border-slate-700 cursor-pointer">
+                </div>
+                <div>
+                    <label class="text-xs flex justify-between text-slate-300">مسافة البعد عن المركز: <span id="valMirrorDist">0px</span></label>
+                    <input type="range" id="sliderMirrorDist" min="0" max="400" value="0" class="w-full cursor-pointer accent-sky-500">
+                </div>
             </div>
 
-            <!-- Image Pan/Zoom Settings -->
+            <div class="border-b border-slate-700 pb-3 space-y-3">
+                <span class="text-xs font-semibold text-sky-400 block">📦 إدارة المقاطع والمجموعات (تعديل/تلوين/تجميع):</span>
+                <div class="flex gap-2">
+                    <input type="text" id="groupNameInput" placeholder="اسم المقطع الجديد" class="bg-slate-900 border border-slate-700 px-2 py-1 text-xs rounded flex-1 text-slate-100">
+                    <input type="color" id="groupColorInput" value="#38bdf8" class="bg-transparent h-7 w-8 cursor-pointer rounded">
+                    <button id="btnAddGroup" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-xs font-bold">+ مقطع</button>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button id="btnGroupSelected" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 rounded text-xs font-bold">🔗 تجميع المحدد</button>
+                    <button id="btnUngroupSelected" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded text-xs font-bold">🔓 تفكيك المجموعة</button>
+                </div>
+                <div id="groupListContainer" class="space-y-1.5 max-h-48 overflow-y-auto pr-1 border border-slate-900 p-1.5 rounded bg-slate-950/50"></div>
+            </div>
+
             <div class="border-b border-slate-700 pb-3 space-y-2">
-                <span class="text-xs font-semibold text-slate-400">ضبط وتكبير الصورة:</span>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-emerald-400">🧱 سمك وعمق المجسم (Mesh Extrusion):</span>
+                    <button id="resetExtrude" class="text-xs bg-slate-700 hover:bg-amber-600 px-1.5 py-0.5 rounded text-slate-300">↺</button>
+                </div>
+                <div>
+                    <label class="text-xs flex justify-between">العمق الثلاثي: <span id="valExtrude">50px</span></label>
+                    <input type="range" id="sliderExtrude" min="0" max="500" value="50" class="w-full cursor-pointer">
+                </div>
+            </div>
+
+            <div class="border-b border-slate-700 pb-3 space-y-2">
+                <span class="text-xs font-semibold text-amber-400 block">الالتقاط الشبكي (Grid Snap):</span>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="chkSnapEnable" class="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 cursor-pointer">
+                    <label for="chkSnapEnable" class="text-xs cursor-pointer font-bold">تفعيل الالتقاط الذكي</label>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                    <label class="text-xs text-slate-400">خطوة الحركة:</label>
+                    <input type="number" id="numSnapPosSize" value="20" min="1" max="200" step="5" class="w-20 bg-slate-900 border border-slate-700 text-xs text-center rounded text-amber-400 font-bold py-0.5">
+                </div>
+            </div>
+
+            <div class="border-b border-slate-700 pb-3 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-sky-400">إحداثيات وموقع المقطع النشط (X, Y, Z):</span>
+                    <button id="resetTransform" class="text-xs bg-slate-700 hover:bg-amber-600 px-1.5 py-0.5 rounded text-slate-300">↺</button>
+                </div>
+                <div>
+                    <label class="text-xs flex justify-between">إزاحة X: <span id="valPosX">0px</span></label>
+                    <input type="range" id="sliderPosX" min="-1000" max="1000" value="0" class="w-full">
+                </div>
+                <div>
+                    <label class="text-xs flex justify-between">إزاحة Y: <span id="valPosY">0px</span></label>
+                    <input type="range" id="sliderPosY" min="-1000" max="1000" value="0" class="w-full">
+                </div>
+                <div>
+                    <label class="text-xs flex justify-between">إزاحة Z: <span id="valPosZ">0px</span></label>
+                    <input type="range" id="sliderPosZ" min="-1000" max="1000" value="0" class="w-full">
+                </div>
+            </div>
+
+            <div class="border-b border-slate-700 pb-3 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-purple-400">دوران المجسم:</span>
+                    <button id="resetRotation" class="text-xs bg-slate-700 hover:bg-amber-600 px-1.5 py-0.5 rounded text-slate-300">↺</button>
+                </div>
+                <div>
+                    <label class="text-xs flex justify-between">دوران Y: <span id="valRotY">0°</span></label>
+                    <input type="range" id="sliderRotY" min="-180" max="180" value="0" class="w-full">
+                </div>
+            </div>
+
+            <div class="border-b border-slate-700 pb-3 space-y-2">
+                <span class="text-xs font-semibold text-slate-400">الصورة المرجعية (المخطط):</span>
+                <input type="file" id="imgLoader" accept="image/*" class="text-xs text-slate-300 file:bg-sky-600 file:border-0 file:rounded file:px-2 file:py-1 file:text-white cursor-pointer w-full">
                 <div>
                     <label class="text-xs flex justify-between">التقريب (Zoom): <span id="valZoom">100%</span></label>
-                    <input type="range" id="sliderZoom" min="10" max="300" value="100" class="w-full">
-                </div>
-                <div>
-                    <label class="text-xs flex justify-between">إزاحة سينية (Offset X):</label>
-                    <input type="range" id="sliderOffsetX" min="-200" max="200" value="0" class="w-full">
-                </div>
-                <div>
-                    <label class="text-xs flex justify-between">إزاحة صادية (Offset Y):</label>
-                    <input type="range" id="sliderOffsetY" min="-200" max="200" value="0" class="w-full">
-                </div>
-            </div>
-
-            <!-- Precision Controls -->
-            <div class="space-y-2">
-                <span class="text-xs font-semibold text-slate-400">إعدادات النقاط والرسم:</span>
-                <div>
-                    <label class="text-xs flex justify-between">حجم النقطة (Point Size): <span id="valPointSize">3px</span></label>
-                    <input type="range" id="sliderPointSize" min="1" max="20" value="3" class="w-full">
-                </div>
-                <div>
-                    <label class="text-xs flex justify-between">عمق المجسم (Extrude Depth):</label>
-                    <input type="range" id="sliderDepth" min="1" max="50" value="10" class="w-full">
+                    <input type="range" id="sliderZoom" min="10" max="500" value="100" class="w-full cursor-pointer">
                 </div>
             </div>
 
         </aside>
 
-        <!-- Canvases Viewport Area -->
         <main class="flex-1 grid grid-cols-2 gap-2 p-2 bg-slate-950">
-            <!-- 2D Drawing Canvas -->
             <div class="relative border border-slate-800 rounded bg-black flex items-center justify-center overflow-hidden">
                 <canvas id="drawCanvas" class="absolute inset-0 w-full h-full cursor-crosshair"></canvas>
-                <span class="absolute top-2 right-2 bg-slate-900/80 text-xs px-2 py-1 rounded border border-slate-700">شاشة الرسم 2D</span>
+                <span id="modeBadge" class="absolute top-2 right-2 bg-sky-600 text-xs px-2 py-1 rounded border border-slate-700 z-10">1. الخطوط (رسم)</span>
             </div>
 
-            <!-- 3D Preview Canvas -->
             <div id="threeContainer" class="relative border border-slate-800 rounded bg-slate-900 overflow-hidden">
-                <span class="absolute top-2 right-2 bg-slate-900/80 text-xs px-2 py-1 rounded border border-slate-700 z-10">معاينة 3D</span>
+                <div class="absolute top-2 right-2 flex items-center gap-1 bg-slate-900/90 p-1 rounded border border-slate-700 z-20">
+                    <button id="viewOptLines" onclick="set3DViewMode('lines')" class="bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white transition">الخطوط</button>
+                    <button id="viewOptMesh" onclick="set3DViewMode('mesh')" class="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition">المجسم</button>
+                    <button id="viewOptSlices" onclick="set3DViewMode('slices')" class="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition">المقاطع</button>
+                </div>
             </div>
         </main>
 
     </div>
 
-    <!-- Core Scripting -->
     <script>
-        // Setup 2D Drawing Canvas & Image Engine
         const canvas = document.getElementById('drawCanvas');
         const ctx = canvas.getContext('2d');
         let bgImg = null;
-        let points = [];
-        let zoom = 1;
-        let offsetX = 0, offsetY = 0;
-        let pointSize = 3;
+        let zoom = 1, offsetX = 0, offsetY = 0;
+        let pointSize = 5;
+        let mode = 'draw'; 
+        let view3DMode = 'lines';
+        let isDraggingImage = false, dragStartX = 0, dragStartY = 0;
+        let selectedPointRef = null;
+
+        let snapEnabled = false;
+        let snapPosStep = 20;
+
+        // إعدادات المرآة التناظرية الجديدة
+        let mirrorEnabled = false;
+        let mirrorDistance = 0; // المسافة بالبكسل أو الوحدات عن خط المنتصف
+
+        function applySnapVal(value, step) {
+            if (!snapEnabled || step <= 0) return value;
+            return Math.round(value / step) * step;
+        }
+
+        function createObjectGroup(id, name, color, isGroupContainer = false, childIds = []) {
+            return {
+                id: id, name: name, color: color, points: [], extrude: 50,
+                posX: 0, posY: 0, posZ: 0, rotX: 0, rotY: 0, rotZ: 0,
+                isGroupContainer: isGroupContainer, childIds: childIds, selectedForGroup: false
+            };
+        }
+
+        let groups = [createObjectGroup(1, "المقطع الرئيسي", "#38bdf8")];
+        let activeGroupId = 1;
+
+        function getActiveGroup() {
+            return groups.find(g => g.id === activeGroupId) || groups[0];
+        }
 
         function resizeCanvas() {
-            canvas.width = canvas.parentElement.clientWidth;
-            canvas.height = canvas.parentElement.clientHeight;
+            if (canvas.parentElement) {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight;
+                render2D();
+            }
+        }
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            if (renderer && camera && container3D) {
+                camera.aspect = container3D.clientWidth / container3D.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container3D.clientWidth, container3D.clientHeight);
+            }
+        });
+        setTimeout(resizeCanvas, 50);
+
+        function getImageTransform() {
+            let baseW = canvas.width, baseH = canvas.height;
+            if (bgImg) {
+                const canvasAspect = canvas.width / canvas.height;
+                const imgAspect = bgImg.naturalWidth / bgImg.naturalHeight;
+                if (imgAspect > canvasAspect) {
+                    baseW = canvas.width;
+                    baseH = canvas.width / imgAspect;
+                } else {
+                    baseH = canvas.height;
+                    baseW = canvas.height * imgAspect;
+                }
+            }
+            const w = baseW * zoom;
+            const h = baseH * zoom;
+            const x = (canvas.width - w) / 2 + offsetX;
+            const y = (canvas.height - h) / 2 + offsetY;
+            return { x, y, w, h };
+        }
+
+        function setAppMode(newMode) {
+            mode = newMode;
+            const badge = document.getElementById('modeBadge');
+            
+            document.getElementById('btnModeDraw').className = mode === 'draw' ? "bg-sky-600 hover:bg-sky-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap" : "bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap";
+            document.getElementById('btnModeEdit').className = mode === 'edit' ? "bg-amber-500 hover:bg-amber-400 text-slate-900 px-3 py-1 rounded text-sm font-bold whitespace-nowrap" : "bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap text-amber-400";
+            document.getElementById('btnModePan').className = mode === 'pan' ? "bg-sky-600 hover:bg-sky-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap" : "bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap";
+            document.getElementById('btnMode3DDrag').className = mode === 'drag3d' ? "bg-emerald-500 text-slate-900 px-3 py-1 rounded text-sm font-bold whitespace-nowrap" : "bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm font-bold whitespace-nowrap text-emerald-400";
+
+            if (transformControls) {
+                transformControls.detach();
+                transformControls.enabled = (mode === 'drag3d');
+            }
+
+            if (mode === 'draw') {
+                canvas.style.cursor = 'crosshair';
+                badge.innerText = '1. الخطوط (رسم)';
+            } else if (mode === 'edit') {
+                canvas.style.cursor = 'pointer';
+                badge.innerText = 'تعديل الخطوط والنقاط';
+            } else if (mode === 'pan') {
+                canvas.style.cursor = 'grab';
+                badge.innerText = 'تحريك الخلفية';
+            } else if (mode === 'drag3d') {
+                badge.innerText = 'تحريك المجسم 3D ✋';
+                attachTransformToActive();
+            }
             render2D();
         }
-        window.addEventListener('resize', resizeCanvas);
 
-        // Load Blueprint Image
+        window.set3DViewMode = function(vMode) {
+            view3DMode = vMode;
+            document.getElementById('viewOptLines').className = view3DMode === 'lines' ? 'bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white transition' : 'bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition';
+            document.getElementById('viewOptMesh').className = view3DMode === 'mesh' ? 'bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white transition' : 'bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition';
+            document.getElementById('viewOptSlices').className = view3DMode === 'slices' ? 'bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white transition' : 'bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition';
+            update3D();
+        }
+
+        document.getElementById('btnModeDraw').addEventListener('click', () => setAppMode('draw'));
+        document.getElementById('btnModeEdit').addEventListener('click', () => setAppMode('edit'));
+        document.getElementById('btnModePan').addEventListener('click', () => setAppMode('pan'));
+        document.getElementById('btnMode3DDrag').addEventListener('click', () => setAppMode('drag3d'));
+
+        // ربط عناصر المرآة التناظرية
+        document.getElementById('chkMirrorEnable').addEventListener('change', (e) => {
+            mirrorEnabled = e.target.checked;
+            render2D();
+            update3D();
+        });
+
+        document.getElementById('sliderMirrorDist').addEventListener('input', (e) => {
+            mirrorDistance = parseInt(e.target.value) || 0;
+            document.getElementById('valMirrorDist').innerText = mirrorDistance + 'px';
+            render2D();
+            update3D();
+        });
+
+        document.getElementById('btnOrientVert').addEventListener('click', () => {
+            camera.position.set(0, 0, 800);
+            camera.lookAt(0, 0, 0);
+            controls.update();
+        });
+
+        document.getElementById('btnOrientHoriz').addEventListener('click', () => {
+            camera.position.set(0, 800, 0);
+            camera.lookAt(0, 0, 0);
+            controls.update();
+        });
+
+        document.getElementById('btnFullscreen').addEventListener('click', () => {
+            try {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                    const docEl = document.documentElement;
+                    if (docEl.requestFullscreen) docEl.requestFullscreen();
+                    else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+                    else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
+                } else {
+                    if (document.exitFullscreen) document.exitFullscreen();
+                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                    else if (document.msExitFullscreen) document.msExitFullscreen();
+                }
+            } catch (err) {
+                console.error("خطأ في تشغيل ملء الشاشة:", err);
+            }
+        });
+
+        function findHoveredPoint(mouseX, mouseY) {
+            const img = getImageTransform();
+            const threshold = 12;
+            for (let g of groups) {
+                if (g.isGroupContainer) continue;
+                for (let p of g.points) {
+                    const ptX = p.normalized ? (img.x + p.x * img.w) : p.x;
+                    const ptY = p.normalized ? (img.y + p.y * img.h) : p.y;
+                    if (Math.hypot(ptX - mouseX, ptY - mouseY) <= threshold) {
+                        return { point: p, group: g };
+                    }
+                }
+            }
+            return null;
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (mode === 'pan') {
+                isDraggingImage = true;
+                dragStartX = e.clientX - offsetX;
+                dragStartY = e.clientY - offsetY;
+                canvas.style.cursor = 'grabbing';
+            } else if (mode === 'draw') {
+                const g = getActiveGroup();
+                if (!g || g.isGroupContainer) return;
+                const img = getImageTransform();
+                g.points.push({ x: (mouseX - img.x) / img.w, y: (mouseY - img.y) / img.h, normalized: true });
+                render2D();
+                update3D();
+            } else if (mode === 'edit') {
+                const target = findHoveredPoint(mouseX, mouseY);
+                if (target) {
+                    selectedPointRef = target.point;
+                    activeGroupId = target.group.id;
+                    renderGroupList();
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (mode === 'pan' && isDraggingImage) {
+                offsetX = e.clientX - dragStartX;
+                offsetY = e.clientY - dragStartY;
+                render2D();
+            } else if (mode === 'edit' && selectedPointRef) {
+                const img = getImageTransform();
+                selectedPointRef.x = (mouseX - img.x) / img.w;
+                selectedPointRef.y = (mouseY - img.y) / img.h;
+                render2D();
+                update3D();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (mode === 'pan' && isDraggingImage) {
+                isDraggingImage = false;
+                canvas.style.cursor = 'grab';
+            }
+            selectedPointRef = null;
+        });
+
+        canvas.addEventListener('dblclick', (e) => {
+            if (mode === 'edit') {
+                const rect = canvas.getBoundingClientRect();
+                const target = findHoveredPoint(e.clientX - rect.left, e.clientY - rect.top);
+                if (target) {
+                    const idx = target.group.points.indexOf(target.point);
+                    if (idx !== -1) {
+                        target.group.points.splice(idx, 1);
+                        render2D();
+                        update3D();
+                    }
+                }
+            }
+        });
+
+        function render2D() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const img = getImageTransform();
+
+            if (bgImg) {
+                ctx.drawImage(bgImg, img.x, img.y, img.w, img.h);
+            }
+
+            // رسم خط المنتصف للمرآة التناظرية إن كانت مفعلة
+            const centerX = canvas.width / 2;
+            ctx.beginPath();
+            ctx.strokeStyle = mirrorEnabled ? 'rgba(56, 189, 248, 0.6)' : 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = mirrorEnabled ? 2 : 1;
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            groups.forEach(group => {
+                if (group.isGroupContainer || group.points.length === 0) return;
+
+                const drawPointsList = (pts, isMirrored = false) => {
+                    const screenPoints = pts.map(p => {
+                        let nx = p.x;
+                        if (isMirrored) {
+                            // عكس الإحداثي الأفقي بالنسبة لخط المنتصف مع مسافة المرآة
+                            nx = 1.0 - p.x;
+                        }
+                        return {
+                            x: img.x + nx * img.w + (isMirrored ? mirrorDistance : 0),
+                            y: img.y + p.y * img.h,
+                            original: p
+                        };
+                    });
+
+                    ctx.beginPath();
+                    ctx.strokeStyle = group.color;
+                    ctx.lineWidth = isMirrored ? 2 : 3;
+                    if (isMirrored) ctx.setLineDash([3, 3]);
+
+                    screenPoints.forEach((pt, idx) => {
+                        if (idx === 0) ctx.moveTo(pt.x, pt.y);
+                        else ctx.lineTo(pt.x, pt.y);
+                    });
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    if (!isMirrored) {
+                        screenPoints.forEach(pt => {
+                            ctx.beginPath();
+                            const isSelected = selectedPointRef === pt.original;
+                            ctx.arc(pt.x, pt.y, isSelected ? 8 : pointSize, 0, Math.PI * 2);
+                            ctx.fillStyle = isSelected ? '#ef4444' : group.color;
+                            ctx.strokeStyle = '#ffffff';
+                            ctx.lineWidth = 2;
+                            ctx.stroke();
+                            ctx.fill();
+                        });
+                    }
+                };
+
+                // رسم النقاط الأصلية
+                drawPointsList(group.points, false);
+
+                // رسم النقاط المعكوسة تناظرياً إذا كانت المرآة مفعلة
+                if (mirrorEnabled) {
+                    drawPointsList(group.points, true);
+                }
+            });
+        }
+
         document.getElementById('imgLoader').addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -116,103 +475,386 @@
             }
         });
 
-        // Click to Draw Vertices & Edges
-        canvas.addEventListener('click', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            points.push({ x, y });
-            render2D();
-            update3D();
-        });
-
-        // Render 2D View
-        function render2D() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw Background Image
-            if (bgImg) {
-                const w = bgImg.width * zoom;
-                const h = bgImg.height * zoom;
-                const x = (canvas.width - w) / 2 + offsetX;
-                const y = (canvas.height - h) / 2 + offsetY;
-                ctx.drawImage(bgImg, x, y, w, h);
-            }
-
-            // Draw Wireframe Lines
-            if (points.length > 0) {
-                ctx.beginPath();
-                ctx.strokeStyle = '#38bdf8';
-                ctx.lineWidth = 2;
-                ctx.moveTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length; i++) {
-                    ctx.lineTo(points[i].x, points[i].y);
-                }
-                ctx.stroke();
-
-                // Draw Vertices
-                ctx.fillStyle = '#f43f5e';
-                points.forEach(p => {
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, pointSize, 0, Math.PI * 2);
-                    ctx.fill();
-                });
-            }
-        }
-
-        // Sliders Control Listeners
         document.getElementById('sliderZoom').addEventListener('input', (e) => {
-            zoom = e.target.value / 100;
+            zoom = parseFloat(e.target.value) / 100;
             document.getElementById('valZoom').innerText = e.target.value + '%';
             render2D();
         });
-        document.getElementById('sliderOffsetX').addEventListener('input', (e) => { offsetX = parseInt(e.target.value); render2D(); });
-        document.getElementById('sliderOffsetY').addEventListener('input', (e) => { offsetY = parseInt(e.target.value); render2D(); });
-        document.getElementById('sliderPointSize').addEventListener('input', (e) => {
-            pointSize = parseInt(e.target.value);
-            document.getElementById('valPointSize').innerText = pointSize + 'px';
+
+        function renderGroupList() {
+            const container = document.getElementById('groupListContainer');
+            container.innerHTML = '';
+
+            groups.forEach(group => {
+                const isActive = group.id === activeGroupId;
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between p-2 rounded text-xs border ${
+                    isActive ? 'border-sky-500 bg-slate-700 font-bold' : 'border-slate-700 bg-slate-900 hover:bg-slate-750'
+                }`;
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-2 flex-1 overflow-hidden">
+                        <input type="checkbox" ${group.selectedForGroup ? 'checked' : ''} onclick="toggleSelectForGroup(event, ${group.id})" class="rounded text-purple-600 cursor-pointer">
+                        <input type="color" value="${group.color}" onchange="updateGroupColor(event, ${group.id})" class="bg-transparent h-5 w-5 cursor-pointer rounded flex-shrink-0">
+                        <input type="text" value="${group.name}" onchange="updateGroupName(event, ${group.id})" class="bg-slate-950 border border-slate-700 px-1.5 py-0.5 rounded text-xs text-slate-100 flex-1 truncate">
+                    </div>
+                    <div class="flex items-center gap-1.5 ml-2">
+                        <button onclick="selectGroup(${group.id})" class="text-sky-400 hover:text-sky-200 px-1">تحديد</button>
+                        ${groups.length > 1 ? `<button onclick="deleteGroup(event, ${group.id})" class="text-rose-400 hover:text-rose-200 px-1 font-bold">✕</button>` : ''}
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        window.toggleSelectForGroup = function(event, id) {
+            event.stopPropagation();
+            const g = groups.find(item => item.id === id);
+            if (g) g.selectedForGroup = event.target.checked;
+        };
+
+        window.updateGroupName = function(event, id) {
+            const g = groups.find(item => item.id === id);
+            if (g) {
+                g.name = event.target.value.trim() || 'مقطع بدون اسم';
+                update3D();
+            }
+        };
+
+        window.updateGroupColor = function(event, id) {
+            const g = groups.find(item => item.id === id);
+            if (g) {
+                g.color = event.target.value;
+                render2D();
+                update3D();
+            }
+        };
+
+        window.selectGroup = function(id) {
+            activeGroupId = id;
+            renderGroupList();
+            syncGroupControls();
+            render2D();
+            if (mode === 'drag3d') attachTransformToActive();
+        };
+
+        window.deleteGroup = function(event, id) {
+            event.stopPropagation();
+            if (groups.length <= 1) return;
+            
+            const target = groups.find(g => g.id === id);
+            if (target && target.isGroupContainer) {
+                groups = groups.filter(g => !target.childIds.includes(g.id));
+            }
+            
+            groups = groups.filter(g => g.id !== id);
+            if (activeGroupId === id) activeGroupId = groups[0].id;
+            renderGroupList();
+            syncGroupControls();
+            render2D();
+            update3D();
+        };
+
+        document.getElementById('chkSnapEnable').addEventListener('change', (e) => snapEnabled = e.target.checked);
+        document.getElementById('numSnapPosSize').addEventListener('input', (e) => snapPosStep = parseInt(e.target.value) || 1);
+
+        document.getElementById('btnGroupSelected').addEventListener('click', () => {
+            const selected = groups.filter(g => g.selectedForGroup && !g.isGroupContainer);
+            if (selected.length < 2) return alert("الرجاء اختيار مقطعين عاديين أو أكثر لتجميعهما.");
+            
+            const parentId = Date.now();
+            const parentGroup = createObjectGroup(parentId, `مجموعة (${selected.length})`, '#a855f7', true, selected.map(g => g.id));
+            selected.forEach(g => g.selectedForGroup = false);
+            groups.push(parentGroup);
+            activeGroupId = parentId;
+            renderGroupList();
+            syncGroupControls();
+            update3D();
+        });
+
+        document.getElementById('btnUngroupSelected').addEventListener('click', () => {
+            const active = getActiveGroup();
+            if (!active || !active.isGroupContainer) return alert("الرجاء اختيار مجموعة مركبة لتفكيكها من القائمة.");
+            
+            groups = groups.filter(g => g.id !== active.id);
+            activeGroupId = groups[0].id;
+            renderGroupList();
+            syncGroupControls();
+            update3D();
+        });
+
+        document.getElementById('btnAddGroup').addEventListener('click', () => {
+            const nameInput = document.getElementById('groupNameInput');
+            const colorInput = document.getElementById('groupColorInput');
+            const name = nameInput.value.trim() || `مقطع ${groups.length + 1}`;
+            const color = colorInput.value;
+            const newGroup = createObjectGroup(Date.now(), name, color);
+            groups.push(newGroup);
+            activeGroupId = newGroup.id;
+            nameInput.value = '';
+            renderGroupList();
+            syncGroupControls();
             render2D();
         });
 
-        // Buttons
-        document.getElementById('btnUndo').addEventListener('click', () => { points.pop(); render2D(); update3D(); });
-        document.getElementById('btnClearCanvas').addEventListener('click', () => { points = []; render2D(); update3D(); });
-        document.getElementById('btnClearAll').addEventListener('click', () => { points = []; bgImg = null; render2D(); update3D(); });
+        function syncGroupControls() {
+            const g = getActiveGroup();
+            if (!g) return;
+            document.getElementById('sliderExtrude').value = g.extrude;
+            document.getElementById('valExtrude').innerText = g.extrude + 'px';
+            document.getElementById('sliderPosX').value = g.posX;
+            document.getElementById('valPosX').innerText = g.posX + 'px';
+            document.getElementById('sliderPosY').value = g.posY;
+            document.getElementById('valPosY').innerText = g.posY + 'px';
+            document.getElementById('sliderPosZ').value = g.posZ;
+            document.getElementById('valPosZ').innerText = g.posZ + 'px';
+            document.getElementById('sliderRotY').value = g.rotY;
+            document.getElementById('valRotY').innerText = g.rotY + '°';
+        }
 
-        // Setup Basic 3D Engine (Three.js)
-        const container = document.getElementById('threeContainer');
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-        camera.position.set(0, 0, 100);
+        document.getElementById('sliderExtrude').addEventListener('input', (e) => {
+            const g = getActiveGroup();
+            if (g) {
+                g.extrude = parseInt(e.target.value);
+                document.getElementById('valExtrude').innerText = g.extrude + 'px';
+                update3D();
+            }
+        });
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        container.appendChild(renderer.domElement);
+        ['X', 'Y', 'Z'].forEach(axis => {
+            const slider = document.getElementById(`sliderPos${axis}`);
+            const valSpan = document.getElementById(`valPos${axis}`);
+            slider.addEventListener('input', (e) => {
+                const g = getActiveGroup();
+                if (g) {
+                    let val = applySnapVal(parseInt(e.target.value), snapPosStep);
+                    g[`pos${axis}`] = val;
+                    valSpan.innerText = val + 'px';
+                    update3DFromValues();
+                }
+            });
+        });
 
-        let current3DMesh = null;
+        document.getElementById('sliderRotY').addEventListener('input', (e) => {
+            const g = getActiveGroup();
+            if (g) {
+                g.rotY = parseInt(e.target.value);
+                document.getElementById('valRotY').innerText = g.rotY + '°';
+                update3DFromValues();
+            }
+        });
 
-        function update3D() {
-            if (current3DMesh) scene.remove(current3DMesh);
-            if (points.length < 2) { renderer.render(scene, camera); return; }
+        document.getElementById('resetTransform').addEventListener('click', () => {
+            const g = getActiveGroup();
+            if (g) { g.posX = 0; g.posY = 0; g.posZ = 0; syncGroupControls(); update3D(); }
+        });
+        document.getElementById('resetRotation').addEventListener('click', () => {
+            const g = getActiveGroup();
+            if (g) { g.rotY = 0; syncGroupControls(); update3D(); }
+        });
+        document.getElementById('resetExtrude').addEventListener('click', () => {
+            const g = getActiveGroup();
+            if (g) { g.extrude = 50; syncGroupControls(); update3D(); }
+        });
 
-            const geometry = new THREE.BufferGeometry();
-            const vertices = [];
-            
-            points.forEach(p => {
-                // Normalize 2D points to 3D center coordinates
-                vertices.push(p.x - canvas.width/2, -(p.y - canvas.height/2), 0);
+        document.getElementById('btnUndo').addEventListener('click', () => {
+            const g = getActiveGroup();
+            if (g && !g.isGroupContainer && g.points.length > 0) {
+                g.points.pop();
+                render2D();
+                update3D();
+            }
+        });
+
+        document.getElementById('btnClearAll').addEventListener('click', () => {
+            if (confirm("هل تريد مسح كل النقاط للمقطع الحالي؟")) {
+                const g = getActiveGroup();
+                if (g && !g.isGroupContainer) { g.points = []; render2D(); update3D(); }
+            }
+        });
+
+        // --- Three.js Setup ---
+        const container3D = document.getElementById('threeContainer');
+        let scene, camera, renderer, controls, transformControls;
+        const meshMap = new Map();
+
+        function init3D() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+
+            camera = new THREE.PerspectiveCamera(45, container3D.clientWidth / container3D.clientHeight, 1, 5000);
+            camera.position.set(0, 0, 800);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container3D.clientWidth, container3D.clientHeight);
+            renderer.shadowMap.enabled = true;
+            container3D.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            transformControls = new THREE.TransformControls(camera, renderer.domElement);
+            transformControls.size = 0.75;
+            scene.add(transformControls);
+
+            transformControls.addEventListener('dragging-changed', function (event) {
+                controls.enabled = !event.value;
             });
 
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-            const material = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
-            current3DMesh = new THREE.Line(geometry, material);
-            scene.add(current3DMesh);
+            transformControls.addEventListener('change', function () {
+                const g = getActiveGroup();
+                if (!g) return;
+                const meshObj = meshMap.get(g.id);
+                if (meshObj) {
+                    g.posX = Math.round(meshObj.position.x);
+                    g.posY = Math.round(-meshObj.position.y);
+                    g.posZ = Math.round(meshObj.position.z);
+                    g.rotY = Math.round(THREE.MathUtils.radToDeg(meshObj.rotation.y));
+                    syncGroupControls();
+                }
+            });
 
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(500, 1000, 500);
+            scene.add(dirLight);
+
+            const gridHelper = new THREE.GridHelper(1000, 50, 0x38bdf8, 0x334155);
+            gridHelper.position.y = -200;
+            scene.add(gridHelper);
+
+            animate3D();
+            renderGroupList();
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            controls.update();
             renderer.render(scene, camera);
         }
 
-        // Initial setup
-        setTimeout(resizeCanvas, 100);
+        function attachTransformToActive() {
+            if (!transformControls) return;
+            const g = getActiveGroup();
+            if (g && meshMap.has(g.id)) {
+                transformControls.attach(meshMap.get(g.id));
+                transformControls.enabled = (mode === 'drag3d');
+            } else {
+                transformControls.detach();
+            }
+        }
+
+        function update3DFromValues() {
+            const g = getActiveGroup();
+            if (!g) return;
+            const meshObj = meshMap.get(g.id);
+            if (meshObj) {
+                meshObj.position.set(g.posX, -g.posY, g.posZ);
+                meshObj.rotation.y = THREE.MathUtils.degToRad(g.rotY);
+            }
+        }
+
+        function buildGroupShape(group, isMirrored = false) {
+            if (group.points.length < 2) return null;
+            const shape = new THREE.Shape();
+            const scale = 400; // معامل تحويل لإعطاء حجم مناسب في الـ 3D
+
+            group.points.forEach((p, idx) => {
+                let px = p.x;
+                if (isMirrored) px = 1.0 - p.x;
+                
+                // تمركز المحاور
+                const x = (px - 0.5) * scale + (isMirrored ? (mirrorDistance * 0.5) : 0);
+                const y = -(p.y - 0.5) * scale;
+
+                if (idx === 0) shape.moveTo(x, y);
+                else shape.lineTo(x, y);
+            });
+            return shape;
+        }
+
+        function update3D() {
+            // تنظيف المجسمات السابقة
+            meshMap.forEach((mesh) => scene.remove(mesh));
+            meshMap.clear();
+
+            groups.forEach(group => {
+                const groupContainerObj = new THREE.Group();
+
+                if (group.isGroupContainer) {
+                    group.childIds.forEach(childId => {
+                        const childGroup = groups.find(g => g.id === childId);
+                        if (childGroup && childGroup.points.length >= 2) {
+                            const childMesh = createMeshFromGroup(childGroup);
+                            if (childMesh) groupContainerObj.add(childMesh);
+                        }
+                    });
+                } else if (group.points.length >= 2) {
+                    const mainMesh = createMeshFromGroup(group);
+                    if (mainMesh) groupContainerObj.add(mainMesh);
+
+                    // إضافة المجسم المعكوس تناظرياً إذا كانت المرآة مفعلة
+                    if (mirrorEnabled) {
+                        const mirrorMesh = createMeshFromGroup(group, true);
+                        if (mirrorMesh) groupContainerObj.add(mirrorMesh);
+                    }
+                }
+
+                groupContainerObj.position.set(group.posX, -group.posY, group.posZ);
+                groupContainerObj.rotation.y = THREE.MathUtils.degToRad(group.rotY);
+
+                scene.add(groupContainerObj);
+                meshMap.set(group.id, groupContainerObj);
+            });
+
+            if (mode === 'drag3d') attachTransformToActive();
+        }
+
+        function createMeshFromGroup(group, isMirrored = false) {
+            const shape = buildGroupShape(group, isMirrored);
+            if (!shape) return null;
+
+            if (view3DMode === 'lines') {
+                const points = shape.getPoints();
+                const geometry = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(p.x, p.y, 0)));
+                const material = new THREE.LineBasicMaterial({ color: group.color });
+                return new THREE.Line(geometry, material);
+            } else if (view3DMode === 'mesh') {
+                const extrudeSettings = {
+                    steps: 1,
+                    depth: group.extrude,
+                    bevelEnabled: true,
+                    bevelThickness: 3,
+                    bevelSize: 2,
+                    bevelSegments: 3
+                };
+                const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                geometry.center();
+                const material = new THREE.MeshStandardMaterial({
+                    color: group.color,
+                    roughness: 0.3,
+                    metalness: 0.2
+                });
+                return new THREE.Mesh(geometry, material);
+            } else if (view3DMode === 'slices') {
+                const sliceGroup = new THREE.Group();
+                const count = 10;
+                const stepDist = group.extrude / count;
+                for (let i = 0; i < count; i++) {
+                    const points = shape.getPoints();
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(p.x, p.y, (i - count / 2) * stepDist)));
+                    const material = new THREE.LineBasicMaterial({ color: group.color });
+                    const line = new THREE.Line(geometry, material);
+                    sliceGroup.add(line);
+                }
+                return sliceGroup;
+            }
+            return null;
+        }
+
+        init3D();
     </script>
 </body>
 </html>
