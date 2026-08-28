@@ -1,860 +1,5347 @@
+```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Multi-Object Blueprint Builder - Slices, Groups & Symmetric Mirror</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
-    <style> canvas { touch-action: none; } </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>3D Blueprint Builder</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+
+<style>
+canvas{
+    touch-action:none;
+}
+</style>
 </head>
+
 <body class="bg-slate-900 text-slate-100 h-screen flex flex-col font-sans overflow-hidden">
 
-    <header class="bg-slate-800 border-b border-slate-700 p-3 flex items-center justify-between gap-4 overflow-x-auto">
-        <h1 class="text-lg font-bold text-sky-400 whitespace-nowrap">مخطط (الخطوط، المجسم، والمقاطع والمجموعات والمرآة)</h1>
-        
-        <div class="flex items-center gap-2 flex-nowrap">
-            <button id="btnModeDraw" class="bg-sky-600 hover:bg-sky-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap">1. الخطوط (رسم)</button>
-            <button id="btnModeEdit" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm font-bold whitespace-nowrap text-amber-400">تعديل النقاط ✏️</button>
-            <button id="btnModePan" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">تحريك الخلفية</button>
-            <button id="btnMode3DDrag" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm font-bold whitespace-nowrap text-emerald-400">تحريك 3D ✋</button>
-            
-            <div class="h-4 w-px bg-slate-700 mx-1 flex-shrink-0"></div>
+<header class="bg-slate-800 border-b border-slate-700 p-3 flex items-center justify-between gap-4 overflow-x-auto">
 
-            <button id="btnOrientVert" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap">واجهة (Front)</button>
-            <button id="btnOrientHoriz" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">أفقي (Top)</button>
+<h1 class="text-lg font-bold text-sky-400 whitespace-nowrap">
+مخطط 3D — الخطوط، المجسم، Wireframe، المقاطع والمجموعات
+</h1>
 
-            <div class="h-4 w-px bg-slate-700 mx-1 flex-shrink-0"></div>
+<div class="flex items-center gap-2 flex-nowrap">
 
-            <button id="btnFullscreen" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">ملء الشاشة ⛶</button>
-            <button id="btnUndo" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">تراجع</button>
-            <button id="btnClearAll" class="bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded text-sm whitespace-nowrap">مسح الكل</button>
-        </div>
-    </header>
+<button id="btnModeDraw"
+class="bg-sky-600 hover:bg-sky-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap">
+✏️ رسم
+</button>
 
-    <div class="flex-1 flex overflow-hidden">
-        
-        <aside class="w-80 bg-slate-800 border-l border-slate-700 p-4 flex flex-col gap-4 overflow-y-auto flex-shrink-0">
-            
-            <!-- قسم المرآة التناظرية الجديدة -->
-            <div class="border-b border-slate-700 pb-3 space-y-2 bg-slate-900/40 p-2.5 rounded-lg border border-sky-500/30">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold text-sky-400 flex items-center gap-1">🪞 مرآة التناظر (Symmetric Mirror):</span>
-                    <input type="checkbox" id="chkMirrorEnable" class="w-4 h-4 rounded text-sky-500 bg-slate-900 border-slate-700 cursor-pointer">
-                </div>
-                <div>
-                    <label class="text-xs flex justify-between text-slate-300">مسافة البعد عن المركز: <span id="valMirrorDist">0px</span></label>
-                    <input type="range" id="sliderMirrorDist" min="0" max="400" value="0" class="w-full cursor-pointer accent-sky-500">
-                </div>
-            </div>
+<button id="btnModeEdit"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">
+🛠️ تعديل النقطة
+</button>
 
-            <div class="border-b border-slate-700 pb-3 space-y-3">
-                <span class="text-xs font-semibold text-sky-400 block">📦 إدارة المقاطع والمجموعات (تعديل/تلوين/تجميع):</span>
-                <div class="flex gap-2">
-                    <input type="text" id="groupNameInput" placeholder="اسم المقطع الجديد" class="bg-slate-900 border border-slate-700 px-2 py-1 text-xs rounded flex-1 text-slate-100">
-                    <input type="color" id="groupColorInput" value="#38bdf8" class="bg-transparent h-7 w-8 cursor-pointer rounded">
-                    <button id="btnAddGroup" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-xs font-bold">+ مقطع</button>
-                </div>
-                <div class="flex gap-2 pt-1">
-                    <button id="btnGroupSelected" class="flex-1 bg-purple-600 hover:bg-purple-500 text-white px-2 py-1 rounded text-xs font-bold">🔗 تجميع المحدد</button>
-                    <button id="btnUngroupSelected" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded text-xs font-bold">🔓 تفكيك المجموعة</button>
-                </div>
-                <div id="groupListContainer" class="space-y-1.5 max-h-48 overflow-y-auto pr-1 border border-slate-900 p-1.5 rounded bg-slate-950/50"></div>
-            </div>
+<button id="btnModeDelete"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap text-rose-400">
+🗑️ حذف النقطة
+</button>
 
-            <div class="border-b border-slate-700 pb-3 space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold text-emerald-400">🧱 سمك وعمق المجسم (Mesh Extrusion):</span>
-                    <button id="resetExtrude" class="text-xs bg-slate-700 hover:bg-amber-600 px-1.5 py-0.5 rounded text-slate-300">↺</button>
-                </div>
-                <div>
-                    <label class="text-xs flex justify-between">العمق الثلاثي: <span id="valExtrude">50px</span></label>
-                    <input type="range" id="sliderExtrude" min="0" max="500" value="50" class="w-full cursor-pointer">
-                </div>
-            </div>
+<button id="btnModeStart"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap text-emerald-400">
+▶️ البدء من نقطة
+</button>
 
-            <div class="border-b border-slate-700 pb-3 space-y-2">
-                <span class="text-xs font-semibold text-amber-400 block">الالتقاط الشبكي (Grid Snap):</span>
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" id="chkSnapEnable" class="w-4 h-4 rounded text-amber-500 bg-slate-900 border-slate-700 cursor-pointer">
-                    <label for="chkSnapEnable" class="text-xs cursor-pointer font-bold">تفعيل الالتقاط الذكي</label>
-                </div>
-                <div class="flex items-center justify-between gap-2">
-                    <label class="text-xs text-slate-400">خطوة الحركة:</label>
-                    <input type="number" id="numSnapPosSize" value="20" min="1" max="200" step="5" class="w-20 bg-slate-900 border border-slate-700 text-xs text-center rounded text-amber-400 font-bold py-0.5">
-                </div>
-            </div>
+<button id="btnModeJoin"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap text-purple-300 font-bold">
+🔗 جمع نقطتين
+</button>
 
-            <div class="border-b border-slate-700 pb-3 space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold text-sky-400">إحداثيات وموقع المقطع النشط (X, Y, Z):</span>
-                    <button id="resetTransform" class="text-xs bg-slate-700 hover:bg-amber-600 px-1.5 py-0.5 rounded text-slate-300">↺</button>
-                </div>
-                <div>
-                    <label class="text-xs flex justify-between">إزاحة X: <span id="valPosX">0px</span></label>
-                    <input type="range" id="sliderPosX" min="-1000" max="1000" value="0" class="w-full">
-                </div>
-                <div>
-                    <label class="text-xs flex justify-between">إزاحة Y: <span id="valPosY">0px</span></label>
-                    <input type="range" id="sliderPosY" min="-1000" max="1000" value="0" class="w-full">
-                </div>
-                <div>
-                    <label class="text-xs flex justify-between">إزاحة Z: <span id="valPosZ">0px</span></label>
-                    <input type="range" id="sliderPosZ" min="-1000" max="1000" value="0" class="w-full">
-                </div>
-            </div>
+<!-- NEW: MANUAL GROUP SELECTION -->
+<button id="btnModeManualGroup"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap text-fuchsia-300 font-bold">
+🎯 تحديد يدوي
+</button>
 
-            <div class="border-b border-slate-700 pb-3 space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold text-purple-400">دوران المجسم:</span>
-                    <button id="resetRotation" class="text-xs bg-slate-700 hover:bg-amber-600 px-1.5 py-0.5 rounded text-slate-300">↺</button>
-                </div>
-                <div>
-                    <label class="text-xs flex justify-between">دوران Y: <span id="valRotY">0°</span></label>
-                    <input type="range" id="sliderRotY" min="-180" max="180" value="0" class="w-full">
-                </div>
-            </div>
+<button id="btnModePan"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">
+✋ تحريك الخلفية
+</button>
 
-            <div class="border-b border-slate-700 pb-3 space-y-2">
-                <span class="text-xs font-semibold text-slate-400">الصورة المرجعية (المخطط):</span>
-                <input type="file" id="imgLoader" accept="image/*" class="text-xs text-slate-300 file:bg-sky-600 file:border-0 file:rounded file:px-2 file:py-1 file:text-white cursor-pointer w-full">
-                <div>
-                    <label class="text-xs flex justify-between">التقريب (Zoom): <span id="valZoom">100%</span></label>
-                    <input type="range" id="sliderZoom" min="10" max="500" value="100" class="w-full cursor-pointer">
-                </div>
-            </div>
+<button id="btnMode3DDrag"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm font-bold whitespace-nowrap text-emerald-400">
+✋ تحريك 3D
+</button>
 
-        </aside>
+<div class="h-4 w-px bg-slate-700 mx-1"></div>
 
-        <main class="flex-1 grid grid-cols-2 gap-2 p-2 bg-slate-950">
-            <div class="relative border border-slate-800 rounded bg-black flex items-center justify-center overflow-hidden">
-                <canvas id="drawCanvas" class="absolute inset-0 w-full h-full cursor-crosshair"></canvas>
-                <span id="modeBadge" class="absolute top-2 right-2 bg-sky-600 text-xs px-2 py-1 rounded border border-slate-700 z-10">1. الخطوط (رسم)</span>
-            </div>
+<button id="btnOrientVert"
+class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap">
+واجهة Front
+</button>
 
-            <div id="threeContainer" class="relative border border-slate-800 rounded bg-slate-900 overflow-hidden">
-                <div class="absolute top-2 right-2 flex items-center gap-1 bg-slate-900/90 p-1 rounded border border-slate-700 z-20">
-                    <button id="viewOptLines" onclick="set3DViewMode('lines')" class="bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white transition">الخطوط</button>
-                    <button id="viewOptMesh" onclick="set3DViewMode('mesh')" class="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition">المجسم</button>
-                    <button id="viewOptSlices" onclick="set3DViewMode('slices')" class="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition">المقاطع</button>
-                </div>
-            </div>
-        </main>
+<button id="btnOrientHoriz"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">
+أفقي Top
+</button>
 
-    </div>
+<div class="h-4 w-px bg-slate-700 mx-1"></div>
 
-    <script>
-        const canvas = document.getElementById('drawCanvas');
-        const ctx = canvas.getContext('2d');
-        let bgImg = null;
-        let zoom = 1, offsetX = 0, offsetY = 0;
-        let pointSize = 5;
-        let mode = 'draw'; 
-        let view3DMode = 'lines';
-        let isDraggingImage = false, dragStartX = 0, dragStartY = 0;
-        let selectedPointRef = null;
+<button id="btnFullscreen"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">
+ملء الشاشة ⛶
+</button>
 
-        let snapEnabled = false;
-        let snapPosStep = 20;
+<button id="btnUndo"
+class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap">
+تراجع
+</button>
 
-        // إعدادات المرآة التناظرية الجديدة
-        let mirrorEnabled = false;
-        let mirrorDistance = 0; // المسافة بالبكسل أو الوحدات عن خط المنتصف
+<button id="btnClearAll"
+class="bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded text-sm whitespace-nowrap">
+مسح
+</button>
 
-        function applySnapVal(value, step) {
-            if (!snapEnabled || step <= 0) return value;
-            return Math.round(value / step) * step;
-        }
+</div>
+</header>
 
-        function createObjectGroup(id, name, color, isGroupContainer = false, childIds = []) {
-            return {
-                id: id, name: name, color: color, points: [], extrude: 50,
-                posX: 0, posY: 0, posZ: 0, rotX: 0, rotY: 0, rotZ: 0,
-                isGroupContainer: isGroupContainer, childIds: childIds, selectedForGroup: false
-            };
-        }
 
-        let groups = [createObjectGroup(1, "المقطع الرئيسي", "#38bdf8")];
-        let activeGroupId = 1;
+<div class="flex-1 flex overflow-hidden">
 
-        function getActiveGroup() {
-            return groups.find(g => g.id === activeGroupId) || groups[0];
-        }
+<aside class="w-80 bg-slate-800 border-l border-slate-700 p-4 flex flex-col gap-4 overflow-y-auto flex-shrink-0">
 
-        function resizeCanvas() {
-            if (canvas.parentElement) {
-                canvas.width = canvas.parentElement.clientWidth;
-                canvas.height = canvas.parentElement.clientHeight;
-                render2D();
-            }
-        }
-        window.addEventListener('resize', () => {
-            resizeCanvas();
-            if (renderer && camera && container3D) {
-                camera.aspect = container3D.clientWidth / container3D.clientHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(container3D.clientWidth, container3D.clientHeight);
-            }
-        });
-        setTimeout(resizeCanvas, 50);
+<!-- MIRROR -->
 
-        function getImageTransform() {
-            let baseW = canvas.width, baseH = canvas.height;
-            if (bgImg) {
-                const canvasAspect = canvas.width / canvas.height;
-                const imgAspect = bgImg.naturalWidth / bgImg.naturalHeight;
-                if (imgAspect > canvasAspect) {
-                    baseW = canvas.width;
-                    baseH = canvas.width / imgAspect;
-                } else {
-                    baseH = canvas.height;
-                    baseW = canvas.height * imgAspect;
+<div class="border-b border-slate-700 pb-3 space-y-2 bg-slate-900/40 p-2.5 rounded-lg border border-sky-500/30">
+
+<div class="flex items-center justify-between">
+
+<span class="text-xs font-semibold text-sky-400">
+🪞 مرآة الكائن النشط
+</span>
+
+<input
+type="checkbox"
+id="chkMirrorEnable"
+class="w-4 h-4 rounded text-sky-500 bg-slate-900 border-slate-700 cursor-pointer">
+
+</div>
+
+<div>
+
+<label class="text-xs flex justify-between text-slate-300">
+المسافة عن المركز:
+<span id="valMirrorDist">0px</span>
+</label>
+
+<input
+type="range"
+id="sliderMirrorDist"
+min="-400"
+max="400"
+value="0"
+step="1"
+class="w-full cursor-pointer accent-sky-500">
+
+</div>
+
+</div>
+
+
+<!-- GROUPS -->
+
+<div class="border-b border-slate-700 pb-3 space-y-3">
+
+<div class="flex items-center justify-between">
+
+<span class="text-xs font-semibold text-sky-400">
+📦 المقاطع والمجموعات
+</span>
+
+<span id="selectionCount"
+class="text-[10px] text-slate-400">
+0 محدد
+</span>
+
+</div>
+
+
+<div class="flex gap-2">
+
+<input
+type="text"
+id="groupNameInput"
+placeholder="اسم المقطع"
+class="bg-slate-900 border border-slate-700 px-2 py-1 text-xs rounded flex-1">
+
+<input
+type="color"
+id="groupColorInput"
+value="#38bdf8"
+class="bg-transparent h-7 w-8 cursor-pointer rounded">
+
+<button
+id="btnAddGroup"
+class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-xs font-bold">
++ مقطع
+</button>
+
+</div>
+
+
+<div class="grid grid-cols-2 gap-2">
+
+<button
+id="btnGroupSelected"
+class="bg-purple-600 hover:bg-purple-500 text-white px-2 py-1.5 rounded text-xs font-bold">
+🔗 تجميع
+</button>
+
+<button
+id="btnUngroupSelected"
+class="bg-amber-600 hover:bg-amber-500 text-white px-2 py-1.5 rounded text-xs font-bold">
+🔓 تفكيك
+</button>
+
+</div>
+
+
+<div class="grid grid-cols-2 gap-2">
+
+<button
+id="btnSelectAllGroups"
+class="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs">
+تحديد الكل
+</button>
+
+<button
+id="btnClearGroupSelection"
+class="bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs">
+إلغاء التحديد
+</button>
+
+</div>
+
+
+<div class="text-[10px] text-slate-500 leading-4">
+
+<b class="text-fuchsia-300">
+🎯 التحديد اليدوي:
+</b><br>
+فعّل زر 🎯 تحديد يدوي ثم اضغط على أي خط لتحديد الكائن.<br>
+Ctrl + نقرة = إضافة أكثر من كائن.<br><br>
+
+نقرة على القائمة = تحديد المقطع.<br>
+📁 = مجموعة.<br>
+🔗 جمع نقطتين = يعمل داخل نفس المجموعة فقط.
+
+</div>
+
+
+<div
+id="manualSelectionInfo"
+class="hidden border border-fuchsia-500/40 bg-fuchsia-950/30 rounded-lg p-2 text-[10px] text-fuchsia-200 leading-4">
+🎯 وضع التحديد اليدوي فعال<br>
+اضغط على الخطوط في الرسم لتحديد الكائنات.
+</div>
+
+
+<div
+id="groupListContainer"
+class="space-y-1.5 max-h-56 overflow-y-auto pr-1 border border-slate-900 p-1.5 rounded bg-slate-950/50">
+</div>
+
+</div>
+
+
+<!-- JOIN INFO -->
+
+<div
+id="joinInfo"
+class="hidden border border-purple-500/40 bg-purple-950/30 rounded-lg p-2 space-y-1">
+
+<div class="text-xs font-bold text-purple-300">
+🔗 جمع نقطتين
+</div>
+
+<div
+id="joinStatus"
+class="text-[10px] text-slate-400 leading-4">
+اختر النقطة الأولى.
+</div>
+
+<button
+id="btnCancelJoin"
+class="w-full bg-slate-700 hover:bg-slate-600 text-xs rounded py-1">
+إلغاء
+</button>
+
+</div>
+
+
+<!-- EXTRUSION -->
+
+<div class="border-b border-slate-700 pb-3 space-y-2">
+
+<div class="flex justify-between items-center">
+
+<span class="text-xs font-semibold text-emerald-400">
+🧱 سمك المجسم
+</span>
+
+<button
+id="resetExtrude"
+class="text-xs bg-slate-700 hover:bg-amber-600 px-1.5 py-0.5 rounded">
+↺
+</button>
+
+</div>
+
+<label class="text-xs flex justify-between">
+العمق:
+<span id="valExtrude">50px</span>
+</label>
+
+<input
+type="range"
+id="sliderExtrude"
+min="0"
+max="500"
+value="50"
+class="w-full cursor-pointer">
+
+</div>
+
+
+<!-- SNAP -->
+
+<div class="border-b border-slate-700 pb-3 space-y-2">
+
+<span class="text-xs font-semibold text-amber-400">
+الالتقاط الشبكي
+</span>
+
+<div class="flex items-center gap-2">
+
+<input
+type="checkbox"
+id="chkSnapEnable"
+class="w-4 h-4 rounded">
+
+<label class="text-xs font-bold">
+تفعيل الالتقاط
+</label>
+
+</div>
+
+<div class="flex items-center justify-between">
+
+<label class="text-xs text-slate-400">
+خطوة الحركة:
+</label>
+
+<input
+type="number"
+id="numSnapPosSize"
+value="20"
+min="1"
+max="200"
+step="5"
+class="w-20 bg-slate-900 border border-slate-700 text-xs text-center rounded text-amber-400 font-bold py-0.5">
+
+</div>
+
+</div>
+
+
+<!-- POSITION -->
+
+<div class="border-b border-slate-700 pb-3 space-y-2">
+
+<div class="flex justify-between items-center">
+
+<span class="text-xs font-semibold text-sky-400">
+إحداثيات المقطع
+</span>
+
+<button
+id="resetTransform"
+class="text-xs bg-slate-700 hover:bg-amber-600 px-1.5 py-0.5 rounded">
+↺
+</button>
+
+</div>
+
+
+<label class="text-xs flex justify-between">
+X:
+<span id="valPosX">0px</span>
+</label>
+
+<input
+type="range"
+id="sliderPosX"
+min="-1000"
+max="1000"
+value="0"
+class="w-full">
+
+
+<label class="text-xs flex justify-between">
+Y:
+<span id="valPosY">0px</span>
+</label>
+
+<input
+type="range"
+id="sliderPosY"
+min="-1000"
+max="1000"
+value="0"
+class="w-full">
+
+
+<label class="text-xs flex justify-between">
+Z:
+<span id="valPosZ">0px</span>
+</label>
+
+<input
+type="range"
+id="sliderPosZ"
+min="-1000"
+max="1000"
+value="0"
+class="w-full">
+
+</div>
+
+
+<!-- ROTATION -->
+
+<div class="border-b border-slate-700 pb-3 space-y-2">
+
+<div class="flex justify-between">
+
+<span class="text-xs font-semibold text-purple-400">
+دوران المجسم
+</span>
+
+<button
+id="resetRotation"
+class="text-xs bg-slate-700 hover:bg-amber-600 px-1.5 py-0.5 rounded">
+↺
+</button>
+
+</div>
+
+<label class="text-xs flex justify-between">
+دوران Y:
+<span id="valRotY">0°</span>
+</label>
+
+<input
+type="range"
+id="sliderRotY"
+min="-180"
+max="180"
+value="0"
+class="w-full">
+
+</div>
+
+
+<!-- IMAGE -->
+
+<div class="border-b border-slate-700 pb-3 space-y-2">
+
+<span class="text-xs font-semibold text-slate-400">
+الصورة المرجعية
+</span>
+
+<input
+type="file"
+id="imgLoader"
+accept="image/*"
+class="text-xs text-slate-300 file:bg-sky-600 file:border-0 file:rounded file:px-2 file:py-1 file:text-white cursor-pointer w-full">
+
+<label class="text-xs flex justify-between">
+التقريب:
+<span id="valZoom">100%</span>
+</label>
+
+<input
+type="range"
+id="sliderZoom"
+min="10"
+max="500"
+value="100"
+class="w-full">
+
+</div>
+
+
+<div class="text-[11px] leading-5 text-slate-400 bg-slate-900 rounded p-2">
+
+<b class="text-fuchsia-300">
+🎯 تحديد يدوي:
+</b><br>
+فعّل الوضع ثم اضغط على أي خط داخل الرسم.<br>
+Ctrl + نقرة يسمح بتحديد عدة كائنات من أماكن مختلفة.<br><br>
+
+<b class="text-emerald-400">
+▶️ البدء من نقطة:
+</b><br>
+اختر الوضع ثم اضغط على نقطة موجودة.
+سيبدأ خط جديد من هذه النقطة.<br><br>
+
+<b class="text-purple-400">
+🔗 جمع نقطتين:
+</b><br>
+يجب أولاً أن تكون النقطتان تابعتين لكائنين داخل نفس المجموعة 📁.<br><br>
+
+<b class="text-amber-400">
+Esc:
+</b>
+إنهاء الخط الحالي أو إلغاء الوضع الحالي.<br>
+
+<b class="text-rose-400">
+حذف:
+</b>
+اضغط على أي نقطة لحذفها.
+
+</div>
+
+</aside>
+
+
+<main class="flex-1 grid grid-cols-2 gap-2 p-2 bg-slate-950">
+
+<div class="relative border border-slate-800 rounded bg-black flex items-center justify-center overflow-hidden">
+
+<canvas
+id="drawCanvas"
+class="absolute inset-0 w-full h-full cursor-crosshair">
+</canvas>
+
+<span
+id="modeBadge"
+class="absolute top-2 right-2 bg-sky-600 text-xs px-2 py-1 rounded border border-slate-700 z-10">
+✏️ رسم
+</span>
+
+</div>
+
+
+<div
+id="threeContainer"
+class="relative border border-slate-800 rounded bg-slate-900 overflow-hidden">
+
+<div
+class="absolute top-2 right-2 flex items-center gap-1 bg-slate-900/90 p-1 rounded border border-slate-700 z-20">
+
+<button
+id="viewOptLines"
+onclick="set3DViewMode('lines')"
+class="bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white">
+الخطوط
+</button>
+
+<button
+id="viewOptMesh"
+onclick="set3DViewMode('mesh')"
+class="bg-slate-700 px-2 py-1 rounded text-xs font-bold text-slate-300">
+المجسم
+</button>
+
+<button
+id="viewOptSlices"
+onclick="set3DViewMode('slices')"
+class="bg-slate-700 px-2 py-1 rounded text-xs font-bold text-slate-300">
+المقاطع
+</button>
+
+<button
+id="viewOptWireframe"
+onclick="set3DViewMode('wireframe')"
+class="bg-slate-700 px-2 py-1 rounded text-xs font-bold text-slate-300">
+Wireframe
+</button>
+
+</div>
+
+</div>
+
+</main>
+
+</div>
+
+
+<script>
+
+/* =========================================================
+   BASIC
+========================================================= */
+
+const canvas = document.getElementById("drawCanvas");
+const ctx = canvas.getContext("2d");
+
+let bgImg = null;
+
+let zoom = 1;
+let offsetX = 0;
+let offsetY = 0;
+
+let pointSize = 5;
+
+let mode = "draw";
+let view3DMode = "lines";
+
+let selectedPointRef = null;
+
+let isDraggingImage = false;
+let dragStartX = 0;
+let dragStartY = 0;
+
+let snapEnabled = false;
+let snapPosStep = 20;
+
+
+/* =========================================================
+   MANUAL GROUP SELECTION
+========================================================= */
+
+/*
+   هذا الوضع يسمح بتحديد الكائنات
+   مباشرة من الخطوط الموجودة على Canvas.
+
+   نقرة:
+   تحديد كائن واحد.
+
+   Ctrl + نقرة:
+   إضافة/إزالة الكائن من التحديد.
+
+   ملاحظة:
+   selectedForGroup هو نفس نظام التحديد
+   المستخدم في قائمة المجموعات، لذلك يمكن
+   استعمال زر "تجميع" مباشرة بعد التحديد.
+*/
+
+function setManualGroupSelection(group, additive = false){
+
+    if(!group || group.isGroupContainer)
+        return;
+
+
+    /*
+       النقرة العادية:
+       إلغاء كل التحديدات السابقة.
+    */
+
+    if(!additive){
+
+        groups.forEach(
+            g =>
+                g.selectedForGroup = false
+        );
+
+    }
+
+
+    /*
+       Ctrl + نقرة:
+       Toggle
+    */
+
+    if(additive){
+
+        group.selectedForGroup =
+            !group.selectedForGroup;
+
+    }
+    else{
+
+        group.selectedForGroup =
+            true;
+
+    }
+
+
+    activeGroupId =
+        group.id;
+
+
+    renderGroupList();
+
+    syncGroupControls();
+
+    render2D();
+
+
+    if(mode === "drag3d")
+        attachTransformToActive();
+
+}
+
+
+/*
+   حساب المسافة بين نقطة وخط.
+*/
+function distancePointToSegment(
+    px,
+    py,
+    x1,
+    y1,
+    x2,
+    y2
+){
+
+    const dx =
+        x2 - x1;
+
+    const dy =
+        y2 - y1;
+
+
+    if(dx === 0 && dy === 0){
+
+        return Math.hypot(
+            px - x1,
+            py - y1
+        );
+
+    }
+
+
+    const t =
+        Math.max(
+            0,
+            Math.min(
+                1,
+                (
+                    (px - x1) * dx +
+                    (py - y1) * dy
+                ) /
+                (
+                    dx * dx +
+                    dy * dy
+                )
+            )
+        );
+
+
+    const cx =
+        x1 + t * dx;
+
+    const cy =
+        y1 + t * dy;
+
+
+    return Math.hypot(
+        px - cx,
+        py - cy
+    );
+
+}
+
+
+/*
+   البحث عن الكائن الموجود تحت مؤشر الفأرة.
+
+   يتم فحص جميع الخطوط، وليس النقاط فقط.
+*/
+function findHoveredGroup(
+    mouseX,
+    mouseY
+){
+
+    const img =
+        getImageTransform();
+
+
+    /*
+       كلما كانت القيمة أكبر كان
+       اختيار الخط أسهل.
+    */
+
+    const threshold = 10;
+
+
+    /*
+       نفحص العناصر من الأعلى إلى الأسفل.
+    */
+
+    for(
+        let gi = groups.length - 1;
+        gi >= 0;
+        gi--
+    ){
+
+        const group =
+            groups[gi];
+
+
+        /*
+           حاوية المجموعة نفسها لا تحتوي
+           على خطوط مباشرة.
+        */
+
+        if(group.isGroupContainer)
+            continue;
+
+
+        for(
+            let pi = group.paths.length - 1;
+            pi >= 0;
+            pi--
+        ){
+
+            const path =
+                group.paths[pi];
+
+
+            if(path.length < 2)
+                continue;
+
+
+            for(
+                let i = path.length - 1;
+                i > 0;
+                i--
+            ){
+
+                const a =
+                    path[i - 1];
+
+                const b =
+                    path[i];
+
+
+                let ax =
+                    img.x +
+                    a.x * img.w;
+
+                let ay =
+                    img.y +
+                    a.y * img.h;
+
+
+                let bx =
+                    img.x +
+                    b.x * img.w;
+
+                let by =
+                    img.y +
+                    b.y * img.h;
+
+
+                /*
+                   إذا كان المقطع قريباً من
+                   منطقة المرآة، نتحقق أيضاً
+                   من النسخة المعكوسة.
+                */
+
+                const dNormal =
+                    distancePointToSegment(
+                        mouseX,
+                        mouseY,
+                        ax,
+                        ay,
+                        bx,
+                        by
+                    );
+
+
+                if(dNormal <= threshold)
+                    return group;
+
+
+                if(group.mirrorEnabled){
+
+                    ax =
+                        img.x +
+                        (1 - a.x) *
+                        img.w +
+                        group.mirrorDistance;
+
+                    ay =
+                        img.y +
+                        a.y *
+                        img.h;
+
+
+                    bx =
+                        img.x +
+                        (1 - b.x) *
+                        img.w +
+                        group.mirrorDistance;
+
+                    by =
+                        img.y +
+                        b.y *
+                        img.h;
+
+
+                    const dMirror =
+                        distancePointToSegment(
+                            mouseX,
+                            mouseY,
+                            ax,
+                            ay,
+                            bx,
+                            by
+                        );
+
+
+                    if(dMirror <= threshold)
+                        return group;
+
                 }
+
             }
-            const w = baseW * zoom;
-            const h = baseH * zoom;
-            const x = (canvas.width - w) / 2 + offsetX;
-            const y = (canvas.height - h) / 2 + offsetY;
-            return { x, y, w, h };
+
         }
 
-        function setAppMode(newMode) {
-            mode = newMode;
-            const badge = document.getElementById('modeBadge');
-            
-            document.getElementById('btnModeDraw').className = mode === 'draw' ? "bg-sky-600 hover:bg-sky-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap" : "bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap";
-            document.getElementById('btnModeEdit').className = mode === 'edit' ? "bg-amber-500 hover:bg-amber-400 text-slate-900 px-3 py-1 rounded text-sm font-bold whitespace-nowrap" : "bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap text-amber-400";
-            document.getElementById('btnModePan').className = mode === 'pan' ? "bg-sky-600 hover:bg-sky-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap" : "bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap";
-            document.getElementById('btnMode3DDrag').className = mode === 'drag3d' ? "bg-emerald-500 text-slate-900 px-3 py-1 rounded text-sm font-bold whitespace-nowrap" : "bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm font-bold whitespace-nowrap text-emerald-400";
+    }
 
-            if (transformControls) {
-                transformControls.detach();
-                transformControls.enabled = (mode === 'drag3d');
-            }
 
-            if (mode === 'draw') {
-                canvas.style.cursor = 'crosshair';
-                badge.innerText = '1. الخطوط (رسم)';
-            } else if (mode === 'edit') {
-                canvas.style.cursor = 'pointer';
-                badge.innerText = 'تعديل الخطوط والنقاط';
-            } else if (mode === 'pan') {
-                canvas.style.cursor = 'grab';
-                badge.innerText = 'تحريك الخلفية';
-            } else if (mode === 'drag3d') {
-                badge.innerText = 'تحريك المجسم 3D ✋';
-                attachTransformToActive();
+    return null;
+
+}
+
+
+/* =========================================================
+   POINT JOIN SYSTEM
+========================================================= */
+
+let joinFirstPoint = null;
+
+let pointConnections = [];
+
+
+function getPointId(point){
+
+    if(!point)
+        return null;
+
+    if(!point.__pointId){
+
+        point.__pointId =
+            "p_" +
+            Date.now() +
+            "_" +
+            Math.random()
+            .toString(36)
+            .slice(2);
+
+    }
+
+    return point.__pointId;
+
+}
+
+
+function areSameObject(a,b){
+
+    if(!a || !b)
+        return false;
+
+    return a.group.id === b.group.id;
+
+}
+
+
+function areObjectsInSameGroup(groupA, groupB){
+
+    if(!groupA || !groupB)
+        return false;
+
+
+    if(groupA.id === groupB.id)
+        return true;
+
+
+    return groups.some(
+        container => {
+
+            if(!container.isGroupContainer)
+                return false;
+
+            return (
+                container.childIds.includes(groupA.id) &&
+                container.childIds.includes(groupB.id)
+            );
+
+        }
+    );
+
+}
+
+
+function getCommonContainer(groupA, groupB){
+
+    if(!groupA || !groupB)
+        return null;
+
+
+    if(groupA.id === groupB.id)
+        return null;
+
+
+    return groups.find(
+        container => {
+
+            if(!container.isGroupContainer)
+                return false;
+
+            return (
+                container.childIds.includes(groupA.id) &&
+                container.childIds.includes(groupB.id)
+            );
+
+        }
+    ) || null;
+
+}
+
+
+function updateJoinUI(){
+
+    const info =
+        document.getElementById("joinInfo");
+
+    const status =
+        document.getElementById("joinStatus");
+
+
+    if(mode !== "join"){
+
+        info.classList.add("hidden");
+
+        return;
+
+    }
+
+
+    info.classList.remove("hidden");
+
+
+    if(!joinFirstPoint){
+
+        status.innerText =
+            "اختر النقطة الأولى.";
+
+        status.className =
+            "text-[10px] text-slate-400 leading-4";
+
+        return;
+
+    }
+
+
+    status.innerText =
+        `تم اختيار: ${joinFirstPoint.group.name} — اختر النقطة الثانية.`;
+
+    status.className =
+        "text-[10px] text-purple-300 leading-4";
+
+}
+
+
+function createPointConnection(first, second){
+
+    if(!first || !second)
+        return false;
+
+
+    if(
+        !areObjectsInSameGroup(
+            first.group,
+            second.group
+        )
+    ){
+
+        alert(
+            "❌ لا يمكن جمع النقطتين.\n\nيجب أن يكون الكائنان داخل نفس المجموعة 📁 أولاً."
+        );
+
+        return false;
+
+    }
+
+
+    if(first.point === second.point){
+
+        alert(
+            "اختر نقطتين مختلفتين."
+        );
+
+        return false;
+
+    }
+
+
+    const exists =
+        pointConnections.some(
+            connection => {
+
+                const a =
+                    getPointId(
+                        connection.pointA
+                    );
+
+                const b =
+                    getPointId(
+                        connection.pointB
+                    );
+
+                const x =
+                    getPointId(
+                        first.point
+                    );
+
+                const y =
+                    getPointId(
+                        second.point
+                    );
+
+
+                return (
+                    (a === x && b === y) ||
+                    (a === y && b === x)
+                );
+
             }
-            render2D();
+        );
+
+
+    if(exists){
+
+        alert(
+            "هذه النقطتان متصلتان بالفعل."
+        );
+
+        return false;
+
+    }
+
+
+    pointConnections.push({
+
+        groupA:
+            first.group.id,
+
+        groupB:
+            second.group.id,
+
+        pointA:
+            first.point,
+
+        pointB:
+            second.point
+
+    });
+
+
+    return true;
+
+}
+
+
+function removeConnectionsForPoint(point){
+
+    pointConnections =
+        pointConnections.filter(
+            connection =>
+                connection.pointA !== point &&
+                connection.pointB !== point
+        );
+
+}
+
+
+/* =========================================================
+   OBJECT STRUCTURE
+========================================================= */
+
+function createObjectGroup(
+    id,
+    name,
+    color,
+    isGroupContainer = false,
+    childIds = []
+){
+
+    return {
+
+        id,
+        name,
+        color,
+
+        paths: [],
+
+        activePathIndex: -1,
+
+        extrude: 50,
+
+        posX: 0,
+        posY: 0,
+        posZ: 0,
+
+        rotX: 0,
+        rotY: 0,
+        rotZ: 0,
+
+        mirrorEnabled: false,
+        mirrorDistance: 0,
+
+        isGroupContainer,
+
+        childIds,
+
+        selectedForGroup: false
+
+    };
+
+}
+
+
+let groups = [
+    createObjectGroup(
+        1,
+        "المقطع الرئيسي",
+        "#38bdf8"
+    )
+];
+
+let activeGroupId = 1;
+
+
+function getActiveGroup(){
+
+    return groups.find(
+        g => g.id === activeGroupId
+    ) || groups[0];
+
+}
+
+
+/* =========================================================
+   PATH HELPERS
+========================================================= */
+
+function ensureActivePath(group){
+
+    if(!group)
+        return null;
+
+    if(
+        group.activePathIndex < 0 ||
+        !group.paths[group.activePathIndex]
+    ){
+
+        group.paths.push([]);
+
+        group.activePathIndex =
+            group.paths.length - 1;
+
+    }
+
+    return group.paths[group.activePathIndex];
+
+}
+
+
+function startNewPathFromPoint(group, point){
+
+    if(
+        !group ||
+        group.isGroupContainer
+    )
+        return;
+
+
+    const newPath = [
+
+        {
+            x: point.x,
+            y: point.y,
+            normalized: true
         }
 
-        window.set3DViewMode = function(vMode) {
-            view3DMode = vMode;
-            document.getElementById('viewOptLines').className = view3DMode === 'lines' ? 'bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white transition' : 'bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition';
-            document.getElementById('viewOptMesh').className = view3DMode === 'mesh' ? 'bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white transition' : 'bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition';
-            document.getElementById('viewOptSlices').className = view3DMode === 'slices' ? 'bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white transition' : 'bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300 transition';
-            update3D();
-        }
+    ];
 
-        document.getElementById('btnModeDraw').addEventListener('click', () => setAppMode('draw'));
-        document.getElementById('btnModeEdit').addEventListener('click', () => setAppMode('edit'));
-        document.getElementById('btnModePan').addEventListener('click', () => setAppMode('pan'));
-        document.getElementById('btnMode3DDrag').addEventListener('click', () => setAppMode('drag3d'));
 
-        // ربط عناصر المرآة التناظرية
-        document.getElementById('chkMirrorEnable').addEventListener('change', (e) => {
-            mirrorEnabled = e.target.checked;
-            render2D();
-            update3D();
-        });
+    getPointId(newPath[0]);
 
-        document.getElementById('sliderMirrorDist').addEventListener('input', (e) => {
-            mirrorDistance = parseInt(e.target.value) || 0;
-            document.getElementById('valMirrorDist').innerText = mirrorDistance + 'px';
-            render2D();
-            update3D();
-        });
 
-        document.getElementById('btnOrientVert').addEventListener('click', () => {
-            camera.position.set(0, 0, 800);
-            camera.lookAt(0, 0, 0);
-            controls.update();
-        });
+    group.paths.push(newPath);
 
-        document.getElementById('btnOrientHoriz').addEventListener('click', () => {
-            camera.position.set(0, 800, 0);
-            camera.lookAt(0, 0, 0);
-            controls.update();
-        });
+    group.activePathIndex =
+        group.paths.length - 1;
 
-        document.getElementById('btnFullscreen').addEventListener('click', () => {
-            try {
-                if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
-                    const docEl = document.documentElement;
-                    if (docEl.requestFullscreen) docEl.requestFullscreen();
-                    else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
-                    else if (docEl.msRequestFullscreen) docEl.msRequestFullscreen();
-                } else {
-                    if (document.exitFullscreen) document.exitFullscreen();
-                    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-                    else if (document.msExitFullscreen) document.msExitFullscreen();
-                }
-            } catch (err) {
-                console.error("خطأ في تشغيل ملء الشاشة:", err);
-            }
-        });
+}
 
-        function findHoveredPoint(mouseX, mouseY) {
-            const img = getImageTransform();
-            const threshold = 12;
-            for (let g of groups) {
-                if (g.isGroupContainer) continue;
-                for (let p of g.points) {
-                    const ptX = p.normalized ? (img.x + p.x * img.w) : p.x;
-                    const ptY = p.normalized ? (img.y + p.y * img.h) : p.y;
-                    if (Math.hypot(ptX - mouseX, ptY - mouseY) <= threshold) {
-                        return { point: p, group: g };
-                    }
-                }
-            }
-            return null;
-        }
 
-        canvas.addEventListener('mousedown', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+function getAllPoints(group){
 
-            if (mode === 'pan') {
-                isDraggingImage = true;
-                dragStartX = e.clientX - offsetX;
-                dragStartY = e.clientY - offsetY;
-                canvas.style.cursor = 'grabbing';
-            } else if (mode === 'draw') {
-                const g = getActiveGroup();
-                if (!g || g.isGroupContainer) return;
-                const img = getImageTransform();
-                g.points.push({ x: (mouseX - img.x) / img.w, y: (mouseY - img.y) / img.h, normalized: true });
-                render2D();
-                update3D();
-            } else if (mode === 'edit') {
-                const target = findHoveredPoint(mouseX, mouseY);
-                if (target) {
-                    selectedPointRef = target.point;
-                    activeGroupId = target.group.id;
-                    renderGroupList();
-                }
-            }
-        });
+    const result = [];
 
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
+    if(
+        !group ||
+        group.isGroupContainer
+    )
+        return result;
 
-            if (mode === 'pan' && isDraggingImage) {
-                offsetX = e.clientX - dragStartX;
-                offsetY = e.clientY - dragStartY;
-                render2D();
-            } else if (mode === 'edit' && selectedPointRef) {
-                const img = getImageTransform();
-                selectedPointRef.x = (mouseX - img.x) / img.w;
-                selectedPointRef.y = (mouseY - img.y) / img.h;
-                render2D();
-                update3D();
-            }
-        });
 
-        window.addEventListener('mouseup', () => {
-            if (mode === 'pan' && isDraggingImage) {
-                isDraggingImage = false;
-                canvas.style.cursor = 'grab';
-            }
-            selectedPointRef = null;
-        });
+    group.paths.forEach(
+        path => {
 
-        canvas.addEventListener('dblclick', (e) => {
-            if (mode === 'edit') {
-                const rect = canvas.getBoundingClientRect();
-                const target = findHoveredPoint(e.clientX - rect.left, e.clientY - rect.top);
-                if (target) {
-                    const idx = target.group.points.indexOf(target.point);
-                    if (idx !== -1) {
-                        target.group.points.splice(idx, 1);
-                        render2D();
-                        update3D();
-                    }
-                }
-            }
-        });
+            path.forEach(
+                point => {
 
-        function render2D() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const img = getImageTransform();
+                    getPointId(point);
 
-            if (bgImg) {
-                ctx.drawImage(bgImg, img.x, img.y, img.w, img.h);
-            }
-
-            // رسم خط المنتصف للمرآة التناظرية إن كانت مفعلة
-            const centerX = canvas.width / 2;
-            ctx.beginPath();
-            ctx.strokeStyle = mirrorEnabled ? 'rgba(56, 189, 248, 0.6)' : 'rgba(255, 255, 255, 0.1)';
-            ctx.lineWidth = mirrorEnabled ? 2 : 1;
-            ctx.setLineDash([5, 5]);
-            ctx.moveTo(centerX, 0);
-            ctx.lineTo(centerX, canvas.height);
-            ctx.stroke();
-            ctx.setLineDash([]);
-
-            groups.forEach(group => {
-                if (group.isGroupContainer || group.points.length === 0) return;
-
-                const drawPointsList = (pts, isMirrored = false) => {
-                    const screenPoints = pts.map(p => {
-                        let nx = p.x;
-                        if (isMirrored) {
-                            // عكس الإحداثي الأفقي بالنسبة لخط المنتصف مع مسافة المرآة
-                            nx = 1.0 - p.x;
-                        }
-                        return {
-                            x: img.x + nx * img.w + (isMirrored ? mirrorDistance : 0),
-                            y: img.y + p.y * img.h,
-                            original: p
-                        };
+                    result.push({
+                        point,
+                        path
                     });
+
+                }
+            );
+
+        }
+    );
+
+    return result;
+
+}
+
+
+/* =========================================================
+   SNAP
+========================================================= */
+
+function applySnapVal(value, step){
+
+    if(
+        !snapEnabled ||
+        step <= 0
+    )
+        return value;
+
+    return Math.round(
+        value / step
+    ) * step;
+
+}
+
+
+/* =========================================================
+   CANVAS
+========================================================= */
+
+function resizeCanvas(){
+
+    if(!canvas.parentElement)
+        return;
+
+
+    canvas.width =
+        canvas.parentElement.clientWidth;
+
+    canvas.height =
+        canvas.parentElement.clientHeight;
+
+
+    render2D();
+
+}
+
+
+window.addEventListener(
+    "resize",
+    () => {
+
+        resizeCanvas();
+
+
+        if(
+            renderer &&
+            camera &&
+            container3D
+        ){
+
+            camera.aspect =
+                container3D.clientWidth /
+                container3D.clientHeight;
+
+            camera.updateProjectionMatrix();
+
+
+            renderer.setSize(
+                container3D.clientWidth,
+                container3D.clientHeight
+            );
+
+        }
+
+    }
+);
+
+
+setTimeout(
+    resizeCanvas,
+    100
+);
+
+
+/* =========================================================
+   IMAGE TRANSFORM
+========================================================= */
+
+function getImageTransform(){
+
+    let baseW = canvas.width;
+    let baseH = canvas.height;
+
+
+    if(bgImg){
+
+        const canvasAspect =
+            canvas.width /
+            canvas.height;
+
+        const imgAspect =
+            bgImg.naturalWidth /
+            bgImg.naturalHeight;
+
+
+        if(imgAspect > canvasAspect){
+
+            baseW =
+                canvas.width;
+
+            baseH =
+                canvas.width /
+                imgAspect;
+
+        }
+        else{
+
+            baseH =
+                canvas.height;
+
+            baseW =
+                canvas.height *
+                imgAspect;
+
+        }
+
+    }
+
+
+    const w =
+        baseW * zoom;
+
+    const h =
+        baseH * zoom;
+
+
+    const x =
+        (canvas.width - w) / 2 +
+        offsetX;
+
+    const y =
+        (canvas.height - h) / 2 +
+        offsetY;
+
+
+    return {
+        x,
+        y,
+        w,
+        h
+    };
+
+}
+
+
+/* =========================================================
+   APP MODE
+========================================================= */
+
+function setAppMode(newMode){
+
+    mode = newMode;
+
+
+    if(newMode !== "join"){
+
+        joinFirstPoint =
+            null;
+
+    }
+
+
+    const badge =
+        document.getElementById(
+            "modeBadge"
+        );
+
+
+    const manualInfo =
+        document.getElementById(
+            "manualSelectionInfo"
+        );
+
+
+    const buttons = {
+
+        draw:
+            document.getElementById(
+                "btnModeDraw"
+            ),
+
+        edit:
+            document.getElementById(
+                "btnModeEdit"
+            ),
+
+        delete:
+            document.getElementById(
+                "btnModeDelete"
+            ),
+
+        start:
+            document.getElementById(
+                "btnModeStart"
+            ),
+
+        join:
+            document.getElementById(
+                "btnModeJoin"
+            ),
+
+        manualGroup:
+            document.getElementById(
+                "btnModeManualGroup"
+            ),
+
+        pan:
+            document.getElementById(
+                "btnModePan"
+            ),
+
+        drag3d:
+            document.getElementById(
+                "btnMode3DDrag"
+            )
+
+    };
+
+
+    Object.values(buttons).forEach(
+        b => {
+
+            b.className =
+                "bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-sm whitespace-nowrap";
+
+        }
+    );
+
+
+    manualInfo.classList.add("hidden");
+
+
+    if(mode === "draw"){
+
+        buttons.draw.className =
+            "bg-sky-600 hover:bg-sky-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap";
+
+        badge.innerText =
+            "✏️ رسم";
+
+        canvas.style.cursor =
+            "crosshair";
+
+    }
+
+
+    else if(mode === "edit"){
+
+        buttons.edit.className =
+            "bg-amber-500 text-slate-900 px-3 py-1 rounded text-sm font-bold whitespace-nowrap";
+
+        badge.innerText =
+            "🛠️ تعديل النقطة";
+
+        canvas.style.cursor =
+            "pointer";
+
+    }
+
+
+    else if(mode === "delete"){
+
+        buttons.delete.className =
+            "bg-rose-600 px-3 py-1 rounded text-sm font-bold whitespace-nowrap";
+
+        badge.innerText =
+            "🗑️ حذف النقطة";
+
+        canvas.style.cursor =
+            "pointer";
+
+    }
+
+
+    else if(mode === "start"){
+
+        buttons.start.className =
+            "bg-emerald-500 text-slate-900 px-3 py-1 rounded text-sm font-bold whitespace-nowrap";
+
+        badge.innerText =
+            "▶️ اختر نقطة للبدء منها";
+
+        canvas.style.cursor =
+            "crosshair";
+
+    }
+
+
+    else if(mode === "join"){
+
+        buttons.join.className =
+            "bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap";
+
+        badge.innerText =
+            "🔗 اختر نقطتين للجمع";
+
+        canvas.style.cursor =
+            "crosshair";
+
+    }
+
+
+    /*
+       NEW:
+       MANUAL GROUP SELECTION MODE
+    */
+
+    else if(mode === "manualGroup"){
+
+        buttons.manualGroup.className =
+            "bg-fuchsia-600 hover:bg-fuchsia-500 px-3 py-1 rounded text-sm font-bold whitespace-nowrap";
+
+        badge.innerText =
+            "🎯 تحديد يدوي للمجموعات";
+
+        canvas.style.cursor =
+            "pointer";
+
+        manualInfo.classList.remove(
+            "hidden"
+        );
+
+    }
+
+
+    else if(mode === "pan"){
+
+        buttons.pan.className =
+            "bg-sky-600 px-3 py-1 rounded text-sm font-bold whitespace-nowrap";
+
+        badge.innerText =
+            "✋ تحريك الخلفية";
+
+        canvas.style.cursor =
+            "grab";
+
+    }
+
+
+    else if(mode === "drag3d"){
+
+        buttons.drag3d.className =
+            "bg-emerald-500 text-slate-900 px-3 py-1 rounded text-sm font-bold whitespace-nowrap";
+
+        badge.innerText =
+            "✋ تحريك المجسم 3D";
+
+        canvas.style.cursor =
+            "default";
+
+    }
+
+
+    if(transformControls){
+
+        transformControls.detach();
+
+        transformControls.enabled =
+            mode === "drag3d";
+
+    }
+
+
+    if(mode === "drag3d")
+        attachTransformToActive();
+
+
+    updateJoinUI();
+
+    render2D();
+
+}
+
+
+/* =========================================================
+   MODE BUTTONS
+========================================================= */
+
+document.getElementById("btnModeDraw")
+.addEventListener(
+    "click",
+    () => setAppMode("draw")
+);
+
+
+document.getElementById("btnModeEdit")
+.addEventListener(
+    "click",
+    () => setAppMode("edit")
+);
+
+
+document.getElementById("btnModeDelete")
+.addEventListener(
+    "click",
+    () => setAppMode("delete")
+);
+
+
+document.getElementById("btnModeStart")
+.addEventListener(
+    "click",
+    () => setAppMode("start")
+);
+
+
+document.getElementById("btnModeJoin")
+.addEventListener(
+    "click",
+    () => setAppMode("join")
+);
+
+
+/*
+   NEW:
+   زر التحديد اليدوي
+*/
+
+document.getElementById("btnModeManualGroup")
+.addEventListener(
+    "click",
+    () => setAppMode("manualGroup")
+);
+
+
+document.getElementById("btnModePan")
+.addEventListener(
+    "click",
+    () => setAppMode("pan")
+);
+
+
+document.getElementById("btnMode3DDrag")
+.addEventListener(
+    "click",
+    () => setAppMode("drag3d")
+);
+
+
+document.getElementById("btnCancelJoin")
+.addEventListener(
+    "click",
+    () => {
+
+        joinFirstPoint =
+            null;
+
+        setAppMode("join");
+
+    }
+);
+
+
+/* =========================================================
+   FIND POINT
+========================================================= */
+
+function findHoveredPoint(mouseX, mouseY){
+
+    const img =
+        getImageTransform();
+
+
+    const threshold = 14;
+
+
+    for(
+        let gi = groups.length - 1;
+        gi >= 0;
+        gi--
+    ){
+
+        const g = groups[gi];
+
+
+        if(g.isGroupContainer)
+            continue;
+
+
+        for(
+            let pi = g.paths.length - 1;
+            pi >= 0;
+            pi--
+        ){
+
+            const path =
+                g.paths[pi];
+
+
+            for(
+                let i = path.length - 1;
+                i >= 0;
+                i--
+            ){
+
+                const p =
+                    path[i];
+
+
+                getPointId(p);
+
+
+                const ptX =
+                    p.normalized
+                    ? img.x + p.x * img.w
+                    : p.x;
+
+                const ptY =
+                    p.normalized
+                    ? img.y + p.y * img.h
+                    : p.y;
+
+
+                if(
+                    Math.hypot(
+                        ptX - mouseX,
+                        ptY - mouseY
+                    ) <= threshold
+                ){
+
+                    return {
+
+                        point: p,
+
+                        group: g,
+
+                        path,
+
+                        pathIndex: pi,
+
+                        pointIndex: i
+
+                    };
+
+                }
+
+            }
+
+        }
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   POINT SCREEN POSITION
+========================================================= */
+
+function getPointScreenPosition(target){
+
+    if(!target)
+        return null;
+
+
+    const img =
+        getImageTransform();
+
+
+    const p =
+        target.point;
+
+
+    return {
+
+        x:
+            img.x +
+            p.x * img.w,
+
+        y:
+            img.y +
+            p.y * img.h
+
+    };
+
+}
+
+
+/* =========================================================
+   DRAW CONNECTIONS 2D
+========================================================= */
+
+function renderPointConnections2D(){
+
+    const img =
+        getImageTransform();
+
+
+    pointConnections.forEach(
+        connection => {
+
+            const groupA =
+                groups.find(
+                    g =>
+                        g.id === connection.groupA
+                );
+
+            const groupB =
+                groups.find(
+                    g =>
+                        g.id === connection.groupB
+                );
+
+
+            if(!groupA || !groupB)
+                return;
+
+
+            if(
+                !connection.pointA ||
+                !connection.pointB
+            )
+                return;
+
+
+            const a = {
+
+                x:
+                    img.x +
+                    connection.pointA.x *
+                    img.w,
+
+                y:
+                    img.y +
+                    connection.pointA.y *
+                    img.h
+
+            };
+
+
+            const b = {
+
+                x:
+                    img.x +
+                    connection.pointB.x *
+                    img.w,
+
+                y:
+                    img.y +
+                    connection.pointB.y *
+                    img.h
+
+            };
+
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                a.x,
+                a.y
+            );
+
+            ctx.lineTo(
+                b.x,
+                b.y
+            );
+
+
+            ctx.strokeStyle =
+                "#ffffff";
+
+            ctx.lineWidth = 4;
+
+            ctx.stroke();
+
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                a.x,
+                a.y
+            );
+
+            ctx.lineTo(
+                b.x,
+                b.y
+            );
+
+
+            ctx.strokeStyle =
+                "#a855f7";
+
+            ctx.lineWidth = 2;
+
+            ctx.stroke();
+
+
+            [a,b].forEach(
+                p => {
 
                     ctx.beginPath();
-                    ctx.strokeStyle = group.color;
-                    ctx.lineWidth = isMirrored ? 2 : 3;
-                    if (isMirrored) ctx.setLineDash([3, 3]);
 
-                    screenPoints.forEach((pt, idx) => {
-                        if (idx === 0) ctx.moveTo(pt.x, pt.y);
-                        else ctx.lineTo(pt.x, pt.y);
-                    });
+                    ctx.arc(
+                        p.x,
+                        p.y,
+                        7,
+                        0,
+                        Math.PI * 2
+                    );
+
+                    ctx.fillStyle =
+                        "#a855f7";
+
+                    ctx.strokeStyle =
+                        "#ffffff";
+
+                    ctx.lineWidth = 2;
+
+                    ctx.fill();
+
                     ctx.stroke();
-                    ctx.setLineDash([]);
 
-                    if (!isMirrored) {
-                        screenPoints.forEach(pt => {
-                            ctx.beginPath();
-                            const isSelected = selectedPointRef === pt.original;
-                            ctx.arc(pt.x, pt.y, isSelected ? 8 : pointSize, 0, Math.PI * 2);
-                            ctx.fillStyle = isSelected ? '#ef4444' : group.color;
-                            ctx.strokeStyle = '#ffffff';
-                            ctx.lineWidth = 2;
-                            ctx.stroke();
-                            ctx.fill();
-                        });
-                    }
-                };
-
-                // رسم النقاط الأصلية
-                drawPointsList(group.points, false);
-
-                // رسم النقاط المعكوسة تناظرياً إذا كانت المرآة مفعلة
-                if (mirrorEnabled) {
-                    drawPointsList(group.points, true);
                 }
-            });
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   CANVAS MOUSE
+========================================================= */
+
+canvas.addEventListener(
+    "mousedown",
+    e => {
+
+        const rect =
+            canvas.getBoundingClientRect();
+
+
+        const mouseX =
+            e.clientX - rect.left;
+
+        const mouseY =
+            e.clientY - rect.top;
+
+
+        /* PAN */
+
+        if(mode === "pan"){
+
+            isDraggingImage = true;
+
+            dragStartX =
+                e.clientX - offsetX;
+
+            dragStartY =
+                e.clientY - offsetY;
+
+            canvas.style.cursor =
+                "grabbing";
+
+            return;
+
         }
 
-        document.getElementById('imgLoader').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    bgImg = new Image();
-                    bgImg.onload = () => render2D();
-                    bgImg.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
+
+        /* =====================================================
+           NEW: MANUAL GROUP SELECTION
+        ===================================================== */
+
+        if(mode === "manualGroup"){
+
+            const targetGroup =
+                findHoveredGroup(
+                    mouseX,
+                    mouseY
+                );
+
+
+            if(!targetGroup){
+
+                /*
+                   النقرة على مكان فارغ:
+                   في النقرة العادية نلغي التحديد.
+                   Ctrl لا يلغي التحديد.
+                */
+
+                if(
+                    !e.ctrlKey &&
+                    !e.metaKey
+                ){
+
+                    groups.forEach(
+                        g =>
+                            g.selectedForGroup =
+                            false
+                    );
+
+
+                    renderGroupList();
+
+                    render2D();
+
+                }
+
+                return;
+
             }
-        });
 
-        document.getElementById('sliderZoom').addEventListener('input', (e) => {
-            zoom = parseFloat(e.target.value) / 100;
-            document.getElementById('valZoom').innerText = e.target.value + '%';
+
+            setManualGroupSelection(
+                targetGroup,
+                e.ctrlKey ||
+                e.metaKey
+            );
+
+
+            return;
+
+        }
+
+
+        /* JOIN TWO POINTS */
+
+        if(mode === "join"){
+
+            const target =
+                findHoveredPoint(
+                    mouseX,
+                    mouseY
+                );
+
+
+            if(!target){
+
+                alert(
+                    "اضغط على نقطة موجودة."
+                );
+
+                return;
+
+            }
+
+
+            if(!joinFirstPoint){
+
+                joinFirstPoint =
+                    target;
+
+
+                activeGroupId =
+                    target.group.id;
+
+
+                updateJoinUI();
+
+                render2D();
+
+                return;
+
+            }
+
+
+            const first =
+                joinFirstPoint;
+
+            const second =
+                target;
+
+
+            if(
+                !areObjectsInSameGroup(
+                    first.group,
+                    second.group
+                )
+            ){
+
+                alert(
+                    "❌ لا يمكن جمع النقطتين.\n\nيجب أن يكون الكائنان في نفس المجموعة 📁.\n\nحدد الكائنين ثم اضغط 🔗 تجميع أولاً."
+                );
+
+                return;
+
+            }
+
+
+            if(
+                createPointConnection(
+                    first,
+                    second
+                )
+            ){
+
+                joinFirstPoint =
+                    null;
+
+
+                updateJoinUI();
+
+                render2D();
+
+                update3D();
+
+            }
+
+
+            return;
+
+        }
+
+
+        /* DRAW */
+
+        if(mode === "draw"){
+
+            const g =
+                getActiveGroup();
+
+
+            if(
+                !g ||
+                g.isGroupContainer
+            )
+                return;
+
+
+            const img =
+                getImageTransform();
+
+
+            let nx =
+                (mouseX - img.x) /
+                img.w;
+
+            let ny =
+                (mouseY - img.y) /
+                img.h;
+
+
+            if(snapEnabled){
+
+                const screenX =
+                    applySnapVal(
+                        mouseX,
+                        snapPosStep
+                    );
+
+                const screenY =
+                    applySnapVal(
+                        mouseY,
+                        snapPosStep
+                    );
+
+
+                nx =
+                    (screenX - img.x) /
+                    img.w;
+
+                ny =
+                    (screenY - img.y) /
+                    img.h;
+
+            }
+
+
+            const path =
+                ensureActivePath(g);
+
+
+            const point = {
+
+                x: nx,
+
+                y: ny,
+
+                normalized: true
+
+            };
+
+
+            getPointId(point);
+
+
+            path.push(point);
+
+
             render2D();
-        });
 
-        function renderGroupList() {
-            const container = document.getElementById('groupListContainer');
-            container.innerHTML = '';
+            update3D();
 
-            groups.forEach(group => {
-                const isActive = group.id === activeGroupId;
-                const item = document.createElement('div');
-                item.className = `flex items-center justify-between p-2 rounded text-xs border ${
-                    isActive ? 'border-sky-500 bg-slate-700 font-bold' : 'border-slate-700 bg-slate-900 hover:bg-slate-750'
+            return;
+
+        }
+
+
+        /* START FROM POINT */
+
+        if(mode === "start"){
+
+            const target =
+                findHoveredPoint(
+                    mouseX,
+                    mouseY
+                );
+
+
+            if(!target){
+
+                alert(
+                    "اضغط على نقطة موجودة أولاً."
+                );
+
+                return;
+
+            }
+
+
+            activeGroupId =
+                target.group.id;
+
+
+            startNewPathFromPoint(
+                target.group,
+                target.point
+            );
+
+
+            setAppMode("draw");
+
+            renderGroupList();
+
+            update3D();
+
+            return;
+
+        }
+
+
+        /* EDIT */
+
+        if(mode === "edit"){
+
+            const target =
+                findHoveredPoint(
+                    mouseX,
+                    mouseY
+                );
+
+
+            if(target){
+
+                selectedPointRef =
+                    target.point;
+
+                activeGroupId =
+                    target.group.id;
+
+                renderGroupList();
+
+            }
+
+            return;
+
+        }
+
+
+        /* DELETE */
+
+        if(mode === "delete"){
+
+            const target =
+                findHoveredPoint(
+                    mouseX,
+                    mouseY
+                );
+
+
+            if(!target)
+                return;
+
+
+            removeConnectionsForPoint(
+                target.point
+            );
+
+
+            const path =
+                target.path;
+
+
+            path.splice(
+                target.pointIndex,
+                1
+            );
+
+
+            if(path.length === 0){
+
+                target.group.paths.splice(
+                    target.pathIndex,
+                    1
+                );
+
+
+                if(
+                    target.group.paths.length === 0
+                ){
+
+                    target.group.activePathIndex =
+                        -1;
+
+                }
+                else{
+
+                    target.group.activePathIndex =
+                        Math.min(
+                            target.group.activePathIndex,
+                            target.group.paths.length - 1
+                        );
+
+                }
+
+            }
+
+
+            render2D();
+
+            update3D();
+
+            return;
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   MOVE POINT
+========================================================= */
+
+canvas.addEventListener(
+    "mousemove",
+    e => {
+
+        const rect =
+            canvas.getBoundingClientRect();
+
+
+        const mouseX =
+            e.clientX - rect.left;
+
+        const mouseY =
+            e.clientY - rect.top;
+
+
+        if(
+            mode === "pan" &&
+            isDraggingImage
+        ){
+
+            offsetX =
+                e.clientX - dragStartX;
+
+            offsetY =
+                e.clientY - dragStartY;
+
+
+            render2D();
+
+            return;
+
+        }
+
+
+        if(
+            mode === "edit" &&
+            selectedPointRef
+        ){
+
+            const img =
+                getImageTransform();
+
+
+            selectedPointRef.x =
+                (mouseX - img.x) /
+                img.w;
+
+
+            selectedPointRef.y =
+                (mouseY - img.y) /
+                img.h;
+
+
+            render2D();
+
+            update3D();
+
+        }
+
+    }
+);
+
+
+window.addEventListener(
+    "mouseup",
+    () => {
+
+        isDraggingImage = false;
+
+        selectedPointRef = null;
+
+
+        if(mode === "pan")
+            canvas.style.cursor =
+                "grab";
+
+    }
+);
+
+
+/* =========================================================
+   ESC
+========================================================= */
+
+window.addEventListener(
+    "keydown",
+    e => {
+
+        if(e.key === "Escape"){
+
+            const g =
+                getActiveGroup();
+
+
+            if(g){
+
+                g.activePathIndex =
+                    -1;
+
+            }
+
+
+            selectedPointRef =
+                null;
+
+            joinFirstPoint =
+                null;
+
+
+            /*
+               الخروج من أي وضع والعودة للرسم.
+            */
+
+            setAppMode("draw");
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   RENDER 2D
+========================================================= */
+
+function render2D(){
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    const img =
+        getImageTransform();
+
+
+    if(bgImg){
+
+        ctx.drawImage(
+            bgImg,
+            img.x,
+            img.y,
+            img.w,
+            img.h
+        );
+
+    }
+
+
+    const centerX =
+        canvas.width / 2;
+
+
+    ctx.beginPath();
+
+    ctx.strokeStyle =
+        "rgba(255,255,255,0.12)";
+
+    ctx.lineWidth = 1;
+
+    ctx.setLineDash([
+        5,
+        5
+    ]);
+
+
+    ctx.moveTo(
+        centerX,
+        0
+    );
+
+
+    ctx.lineTo(
+        centerX,
+        canvas.height
+    );
+
+
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+
+    groups.forEach(
+        group => {
+
+            if(
+                group.isGroupContainer
+            )
+                return;
+
+
+            group.paths.forEach(
+                path => {
+
+                    if(path.length === 0)
+                        return;
+
+
+                    drawPath2D(
+                        group,
+                        path,
+                        false,
+                        img
+                    );
+
+
+                    if(
+                        group.mirrorEnabled
+                    ){
+
+                        drawPath2D(
+                            group,
+                            path,
+                            true,
+                            img
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+    );
+
+
+    renderPointConnections2D();
+
+
+    if(
+        mode === "join" &&
+        joinFirstPoint
+    ){
+
+        const p =
+            getPointScreenPosition(
+                joinFirstPoint
+            );
+
+
+        if(p){
+
+            ctx.beginPath();
+
+            ctx.arc(
+                p.x,
+                p.y,
+                11,
+                0,
+                Math.PI * 2
+            );
+
+
+            ctx.strokeStyle =
+                "#c084fc";
+
+            ctx.lineWidth = 3;
+
+            ctx.stroke();
+
+        }
+
+    }
+
+}
+
+
+/* =========================================================
+   DRAW PATH
+========================================================= */
+
+function drawPath2D(
+    group,
+    path,
+    mirrored,
+    img
+){
+
+    if(path.length === 0)
+        return;
+
+
+    const screenPoints =
+        path.map(
+            p => {
+
+                getPointId(p);
+
+
+                let nx =
+                    p.x;
+
+
+                if(mirrored){
+
+                    nx =
+                        1 - p.x;
+
+                }
+
+
+                return {
+
+                    x:
+                        img.x +
+                        nx * img.w +
+                        (
+                            mirrored
+                            ? group.mirrorDistance
+                            : 0
+                        ),
+
+                    y:
+                        img.y +
+                        p.y * img.h,
+
+                    original:
+                        p
+
+                };
+
+            }
+        );
+
+
+    ctx.beginPath();
+
+
+    /*
+       التحديد اليدوي:
+       إظهار خط الكائن المحدد بلون
+       أكثر وضوحاً وتحتفظ بقية الخطوط
+       بلونها الطبيعي.
+    */
+
+    const isSelected =
+        !!group.selectedForGroup &&
+        !mirrored;
+
+
+    if(isSelected){
+
+        ctx.strokeStyle =
+            "#f0abfc";
+
+        ctx.lineWidth = 7;
+
+    }
+    else{
+
+        ctx.strokeStyle =
+            group.color;
+
+        ctx.lineWidth =
+            mirrored ? 2 : 3;
+
+    }
+
+
+    if(mirrored)
+        ctx.setLineDash([
+            4,
+            4
+        ]);
+
+
+    screenPoints.forEach(
+        (pt, i) => {
+
+            if(i === 0)
+                ctx.moveTo(
+                    pt.x,
+                    pt.y
+                );
+            else
+                ctx.lineTo(
+                    pt.x,
+                    pt.y
+                );
+
+        }
+    );
+
+
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+
+    /*
+       حدود إضافية للكائن المحدد.
+    */
+
+    if(isSelected){
+
+        ctx.beginPath();
+
+        screenPoints.forEach(
+            (pt, i) => {
+
+                if(i === 0)
+                    ctx.moveTo(
+                        pt.x,
+                        pt.y
+                    );
+                else
+                    ctx.lineTo(
+                        pt.x,
+                        pt.y
+                    );
+
+            }
+        );
+
+
+        ctx.strokeStyle =
+            group.color;
+
+        ctx.lineWidth = 3;
+
+        ctx.stroke();
+
+    }
+
+
+    if(!mirrored){
+
+        screenPoints.forEach(
+            pt => {
+
+                const selected =
+                    selectedPointRef ===
+                    pt.original;
+
+
+                const joining =
+                    joinFirstPoint &&
+                    joinFirstPoint.point ===
+                    pt.original;
+
+
+                ctx.beginPath();
+
+
+                ctx.arc(
+                    pt.x,
+                    pt.y,
+                    joining
+                    ? 9
+                    : selected
+                    ? 8
+                    : isSelected
+                    ? pointSize + 1
+                    : pointSize,
+                    0,
+                    Math.PI * 2
+                );
+
+
+                ctx.fillStyle =
+                    joining
+                    ? "#a855f7"
+                    : selected
+                    ? "#ef4444"
+                    : group.color;
+
+
+                ctx.strokeStyle =
+                    "#ffffff";
+
+
+                ctx.lineWidth = 2;
+
+
+                ctx.stroke();
+
+                ctx.fill();
+
+            }
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   IMAGE
+========================================================= */
+
+document.getElementById("imgLoader")
+.addEventListener(
+    "change",
+    e => {
+
+        const file =
+            e.target.files[0];
+
+
+        if(!file)
+            return;
+
+
+        const reader =
+            new FileReader();
+
+
+        reader.onload =
+            event => {
+
+                bgImg =
+                    new Image();
+
+
+                bgImg.onload =
+                    () => render2D();
+
+
+                bgImg.src =
+                    event.target.result;
+
+            };
+
+
+        reader.readAsDataURL(file);
+
+    }
+);
+
+
+document.getElementById("sliderZoom")
+.addEventListener(
+    "input",
+    e => {
+
+        zoom =
+            parseFloat(
+                e.target.value
+            ) / 100;
+
+
+        document.getElementById(
+            "valZoom"
+        ).innerText =
+            e.target.value + "%";
+
+
+        render2D();
+
+    }
+);
+
+
+/* =========================================================
+   GROUP LIST
+========================================================= */
+
+function updateSelectionCount(){
+
+    const count =
+        groups.filter(
+            g => g.selectedForGroup
+        ).length;
+
+
+    document.getElementById(
+        "selectionCount"
+    ).innerText =
+        `${count} محدد`;
+
+}
+
+
+function renderGroupList(){
+
+    const container =
+        document.getElementById(
+            "groupListContainer"
+        );
+
+
+    container.innerHTML = "";
+
+
+    groups.forEach(
+        group => {
+
+            const item =
+                document.createElement("div");
+
+
+            const isActive =
+                group.id ===
+                activeGroupId;
+
+
+            const isSelected =
+                !!group.selectedForGroup;
+
+
+            item.className =
+                `flex items-center justify-between p-2 rounded text-xs border cursor-pointer select-none transition ${
+                    isSelected
+                    ? "border-fuchsia-400 bg-fuchsia-900/30"
+                    : isActive
+                    ? "border-sky-500 bg-slate-700"
+                    : "border-slate-700 bg-slate-900 hover:bg-slate-800"
                 }`;
 
-                item.innerHTML = `
-                    <div class="flex items-center gap-2 flex-1 overflow-hidden">
-                        <input type="checkbox" ${group.selectedForGroup ? 'checked' : ''} onclick="toggleSelectForGroup(event, ${group.id})" class="rounded text-purple-600 cursor-pointer">
-                        <input type="color" value="${group.color}" onchange="updateGroupColor(event, ${group.id})" class="bg-transparent h-5 w-5 cursor-pointer rounded flex-shrink-0">
-                        <input type="text" value="${group.name}" onchange="updateGroupName(event, ${group.id})" class="bg-slate-950 border border-slate-700 px-1.5 py-0.5 rounded text-xs text-slate-100 flex-1 truncate">
+
+            const icon =
+                group.isGroupContainer
+                ? "📁"
+                : "📦";
+
+
+            const typeLabel =
+                group.isGroupContainer
+                ? `مجموعة (${group.childIds.length})`
+                : `${group.paths.length} خط`;
+
+
+            const mirror =
+                group.mirrorEnabled
+                ? " 🪞"
+                : "";
+
+
+            item.innerHTML = `
+
+                <div class="flex items-center gap-2 flex-1 overflow-hidden">
+
+                    <div class="w-5 h-5 rounded border flex items-center justify-center text-[11px] font-bold ${
+                        isSelected
+                        ? "bg-fuchsia-600 border-fuchsia-400"
+                        : "bg-slate-950 border-slate-600"
+                    }">
+
+                        ${isSelected ? "✓" : ""}
+
                     </div>
-                    <div class="flex items-center gap-1.5 ml-2">
-                        <button onclick="selectGroup(${group.id})" class="text-sky-400 hover:text-sky-200 px-1">تحديد</button>
-                        ${groups.length > 1 ? `<button onclick="deleteGroup(event, ${group.id})" class="text-rose-400 hover:text-rose-200 px-1 font-bold">✕</button>` : ''}
+
+                    <div
+                        class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style="background:${group.color}">
                     </div>
-                `;
-                container.appendChild(item);
-            });
-        }
 
-        window.toggleSelectForGroup = function(event, id) {
-            event.stopPropagation();
-            const g = groups.find(item => item.id === id);
-            if (g) g.selectedForGroup = event.target.checked;
-        };
+                    <span>${icon}</span>
 
-        window.updateGroupName = function(event, id) {
-            const g = groups.find(item => item.id === id);
-            if (g) {
-                g.name = event.target.value.trim() || 'مقطع بدون اسم';
-                update3D();
-            }
-        };
+                    <span
+                        class="truncate flex-1"
+                        title="${group.name}">
+                        ${group.name}
+                    </span>
 
-        window.updateGroupColor = function(event, id) {
-            const g = groups.find(item => item.id === id);
-            if (g) {
-                g.color = event.target.value;
-                render2D();
-                update3D();
-            }
-        };
+                    <span class="text-[9px] text-slate-500">
+                        ${typeLabel}${mirror}
+                    </span>
 
-        window.selectGroup = function(id) {
-            activeGroupId = id;
-            renderGroupList();
-            syncGroupControls();
-            render2D();
-            if (mode === 'drag3d') attachTransformToActive();
-        };
+                </div>
 
-        window.deleteGroup = function(event, id) {
-            event.stopPropagation();
-            if (groups.length <= 1) return;
-            
-            const target = groups.find(g => g.id === id);
-            if (target && target.isGroupContainer) {
-                groups = groups.filter(g => !target.childIds.includes(g.id));
-            }
-            
-            groups = groups.filter(g => g.id !== id);
-            if (activeGroupId === id) activeGroupId = groups[0].id;
-            renderGroupList();
-            syncGroupControls();
-            render2D();
-            update3D();
-        };
+                <div class="flex items-center gap-1">
 
-        document.getElementById('chkSnapEnable').addEventListener('change', (e) => snapEnabled = e.target.checked);
-        document.getElementById('numSnapPosSize').addEventListener('input', (e) => snapPosStep = parseInt(e.target.value) || 1);
+                    <button
+                        class="selectGroupBtn text-sky-400 hover:text-sky-200 px-1">
+                        تحديد
+                    </button>
 
-        document.getElementById('btnGroupSelected').addEventListener('click', () => {
-            const selected = groups.filter(g => g.selectedForGroup && !g.isGroupContainer);
-            if (selected.length < 2) return alert("الرجاء اختيار مقطعين عاديين أو أكثر لتجميعهما.");
-            
-            const parentId = Date.now();
-            const parentGroup = createObjectGroup(parentId, `مجموعة (${selected.length})`, '#a855f7', true, selected.map(g => g.id));
-            selected.forEach(g => g.selectedForGroup = false);
-            groups.push(parentGroup);
-            activeGroupId = parentId;
-            renderGroupList();
-            syncGroupControls();
-            update3D();
-        });
+                    <button
+                        class="deleteGroupBtn text-rose-400 px-1 font-bold">
+                        ✕
+                    </button>
 
-        document.getElementById('btnUngroupSelected').addEventListener('click', () => {
-            const active = getActiveGroup();
-            if (!active || !active.isGroupContainer) return alert("الرجاء اختيار مجموعة مركبة لتفكيكها من القائمة.");
-            
-            groups = groups.filter(g => g.id !== active.id);
-            activeGroupId = groups[0].id;
-            renderGroupList();
-            syncGroupControls();
-            update3D();
-        });
+                </div>
+            `;
 
-        document.getElementById('btnAddGroup').addEventListener('click', () => {
-            const nameInput = document.getElementById('groupNameInput');
-            const colorInput = document.getElementById('groupColorInput');
-            const name = nameInput.value.trim() || `مقطع ${groups.length + 1}`;
-            const color = colorInput.value;
-            const newGroup = createObjectGroup(Date.now(), name, color);
-            groups.push(newGroup);
-            activeGroupId = newGroup.id;
-            nameInput.value = '';
-            renderGroupList();
-            syncGroupControls();
-            render2D();
-        });
 
-        function syncGroupControls() {
-            const g = getActiveGroup();
-            if (!g) return;
-            document.getElementById('sliderExtrude').value = g.extrude;
-            document.getElementById('valExtrude').innerText = g.extrude + 'px';
-            document.getElementById('sliderPosX').value = g.posX;
-            document.getElementById('valPosX').innerText = g.posX + 'px';
-            document.getElementById('sliderPosY').value = g.posY;
-            document.getElementById('valPosY').innerText = g.posY + 'px';
-            document.getElementById('sliderPosZ').value = g.posZ;
-            document.getElementById('valPosZ').innerText = g.posZ + 'px';
-            document.getElementById('sliderRotY').value = g.rotY;
-            document.getElementById('valRotY').innerText = g.rotY + '°';
-        }
+            item.addEventListener(
+                "click",
+                event => {
 
-        document.getElementById('sliderExtrude').addEventListener('input', (e) => {
-            const g = getActiveGroup();
-            if (g) {
-                g.extrude = parseInt(e.target.value);
-                document.getElementById('valExtrude').innerText = g.extrude + 'px';
-                update3D();
-            }
-        });
+                    if(
+                        event.target.closest(
+                            "button"
+                        )
+                    )
+                        return;
 
-        ['X', 'Y', 'Z'].forEach(axis => {
-            const slider = document.getElementById(`sliderPos${axis}`);
-            const valSpan = document.getElementById(`valPos${axis}`);
-            slider.addEventListener('input', (e) => {
-                const g = getActiveGroup();
-                if (g) {
-                    let val = applySnapVal(parseInt(e.target.value), snapPosStep);
-                    g[`pos${axis}`] = val;
-                    valSpan.innerText = val + 'px';
-                    update3DFromValues();
-                }
-            });
-        });
 
-        document.getElementById('sliderRotY').addEventListener('input', (e) => {
-            const g = getActiveGroup();
-            if (g) {
-                g.rotY = parseInt(e.target.value);
-                document.getElementById('valRotY').innerText = g.rotY + '°';
-                update3DFromValues();
-            }
-        });
+                    if(
+                        event.ctrlKey ||
+                        event.metaKey
+                    ){
 
-        document.getElementById('resetTransform').addEventListener('click', () => {
-            const g = getActiveGroup();
-            if (g) { g.posX = 0; g.posY = 0; g.posZ = 0; syncGroupControls(); update3D(); }
-        });
-        document.getElementById('resetRotation').addEventListener('click', () => {
-            const g = getActiveGroup();
-            if (g) { g.rotY = 0; syncGroupControls(); update3D(); }
-        });
-        document.getElementById('resetExtrude').addEventListener('click', () => {
-            const g = getActiveGroup();
-            if (g) { g.extrude = 50; syncGroupControls(); update3D(); }
-        });
+                        group.selectedForGroup =
+                            !group.selectedForGroup;
 
-        document.getElementById('btnUndo').addEventListener('click', () => {
-            const g = getActiveGroup();
-            if (g && !g.isGroupContainer && g.points.length > 0) {
-                g.points.pop();
-                render2D();
-                update3D();
-            }
-        });
-
-        document.getElementById('btnClearAll').addEventListener('click', () => {
-            if (confirm("هل تريد مسح كل النقاط للمقطع الحالي؟")) {
-                const g = getActiveGroup();
-                if (g && !g.isGroupContainer) { g.points = []; render2D(); update3D(); }
-            }
-        });
-
-        // --- Three.js Setup ---
-        const container3D = document.getElementById('threeContainer');
-        let scene, camera, renderer, controls, transformControls;
-        const meshMap = new Map();
-
-        function init3D() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f172a);
-
-            camera = new THREE.PerspectiveCamera(45, container3D.clientWidth / container3D.clientHeight, 1, 5000);
-            camera.position.set(0, 0, 800);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container3D.clientWidth, container3D.clientHeight);
-            renderer.shadowMap.enabled = true;
-            container3D.appendChild(renderer.domElement);
-
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-
-            transformControls = new THREE.TransformControls(camera, renderer.domElement);
-            transformControls.size = 0.75;
-            scene.add(transformControls);
-
-            transformControls.addEventListener('dragging-changed', function (event) {
-                controls.enabled = !event.value;
-            });
-
-            transformControls.addEventListener('change', function () {
-                const g = getActiveGroup();
-                if (!g) return;
-                const meshObj = meshMap.get(g.id);
-                if (meshObj) {
-                    g.posX = Math.round(meshObj.position.x);
-                    g.posY = Math.round(-meshObj.position.y);
-                    g.posZ = Math.round(meshObj.position.z);
-                    g.rotY = Math.round(THREE.MathUtils.radToDeg(meshObj.rotation.y));
-                    syncGroupControls();
-                }
-            });
-
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(ambientLight);
-
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight.position.set(500, 1000, 500);
-            scene.add(dirLight);
-
-            const gridHelper = new THREE.GridHelper(1000, 50, 0x38bdf8, 0x334155);
-            gridHelper.position.y = -200;
-            scene.add(gridHelper);
-
-            animate3D();
-            renderGroupList();
-        }
-
-        function animate3D() {
-            requestAnimationFrame(animate3D);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-
-        function attachTransformToActive() {
-            if (!transformControls) return;
-            const g = getActiveGroup();
-            if (g && meshMap.has(g.id)) {
-                transformControls.attach(meshMap.get(g.id));
-                transformControls.enabled = (mode === 'drag3d');
-            } else {
-                transformControls.detach();
-            }
-        }
-
-        function update3DFromValues() {
-            const g = getActiveGroup();
-            if (!g) return;
-            const meshObj = meshMap.get(g.id);
-            if (meshObj) {
-                meshObj.position.set(g.posX, -g.posY, g.posZ);
-                meshObj.rotation.y = THREE.MathUtils.degToRad(g.rotY);
-            }
-        }
-
-        function buildGroupShape(group, isMirrored = false) {
-            if (group.points.length < 2) return null;
-            const shape = new THREE.Shape();
-            const scale = 400; // معامل تحويل لإعطاء حجم مناسب في الـ 3D
-
-            group.points.forEach((p, idx) => {
-                let px = p.x;
-                if (isMirrored) px = 1.0 - p.x;
-                
-                // تمركز المحاور
-                const x = (px - 0.5) * scale + (isMirrored ? (mirrorDistance * 0.5) : 0);
-                const y = -(p.y - 0.5) * scale;
-
-                if (idx === 0) shape.moveTo(x, y);
-                else shape.lineTo(x, y);
-            });
-            return shape;
-        }
-
-        function update3D() {
-            // تنظيف المجسمات السابقة
-            meshMap.forEach((mesh) => scene.remove(mesh));
-            meshMap.clear();
-
-            groups.forEach(group => {
-                const groupContainerObj = new THREE.Group();
-
-                if (group.isGroupContainer) {
-                    group.childIds.forEach(childId => {
-                        const childGroup = groups.find(g => g.id === childId);
-                        if (childGroup && childGroup.points.length >= 2) {
-                            const childMesh = createMeshFromGroup(childGroup);
-                            if (childMesh) groupContainerObj.add(childMesh);
-                        }
-                    });
-                } else if (group.points.length >= 2) {
-                    const mainMesh = createMeshFromGroup(group);
-                    if (mainMesh) groupContainerObj.add(mainMesh);
-
-                    // إضافة المجسم المعكوس تناظرياً إذا كانت المرآة مفعلة
-                    if (mirrorEnabled) {
-                        const mirrorMesh = createMeshFromGroup(group, true);
-                        if (mirrorMesh) groupContainerObj.add(mirrorMesh);
                     }
+                    else{
+
+                        groups.forEach(
+                            g =>
+                                g.selectedForGroup =
+                                false
+                        );
+
+
+                        group.selectedForGroup =
+                            true;
+
+                    }
+
+
+                    activeGroupId =
+                        group.id;
+
+
+                    renderGroupList();
+
+                    syncGroupControls();
+
+                    render2D();
+
+
+                    if(mode === "drag3d")
+                        attachTransformToActive();
+
                 }
+            );
 
-                groupContainerObj.position.set(group.posX, -group.posY, group.posZ);
-                groupContainerObj.rotation.y = THREE.MathUtils.degToRad(group.rotY);
 
-                scene.add(groupContainerObj);
-                meshMap.set(group.id, groupContainerObj);
+            item.querySelector(
+                ".selectGroupBtn"
+            ).addEventListener(
+                "click",
+                event => {
+
+                    event.stopPropagation();
+
+
+                    groups.forEach(
+                        g =>
+                            g.selectedForGroup =
+                            false
+                    );
+
+
+                    group.selectedForGroup =
+                        true;
+
+
+                    activeGroupId =
+                        group.id;
+
+
+                    renderGroupList();
+
+                    syncGroupControls();
+
+                    render2D();
+
+
+                    if(mode === "drag3d")
+                        attachTransformToActive();
+
+                }
+            );
+
+
+            item.querySelector(
+                ".deleteGroupBtn"
+            ).addEventListener(
+                "click",
+                event => {
+
+                    event.stopPropagation();
+
+
+                    deleteGroup(
+                        group.id
+                    );
+
+                }
+            );
+
+
+            container.appendChild(item);
+
+        }
+    );
+
+
+    updateSelectionCount();
+
+}
+
+
+/* =========================================================
+   DELETE GROUP
+========================================================= */
+
+function deleteGroup(id){
+
+    if(groups.length <= 1){
+
+        alert(
+            "لا يمكن حذف المقطع الوحيد."
+        );
+
+        return;
+
+    }
+
+
+    const target =
+        groups.find(
+            g => g.id === id
+        );
+
+
+    if(!target)
+        return;
+
+
+    groups =
+        groups.filter(
+            g => g.id !== id
+        );
+
+
+    groups.forEach(
+        g => {
+
+            if(g.isGroupContainer){
+
+                g.childIds =
+                    g.childIds.filter(
+                        childId =>
+                            childId !== id
+                    );
+
+            }
+
+        }
+    );
+
+
+    pointConnections =
+        pointConnections.filter(
+            connection =>
+                connection.groupA !== id &&
+                connection.groupB !== id
+        );
+
+
+    if(activeGroupId === id){
+
+        activeGroupId =
+            groups[0].id;
+
+    }
+
+
+    renderGroupList();
+
+    syncGroupControls();
+
+    render2D();
+
+    update3D();
+
+}
+
+
+/* =========================================================
+   ADD GROUP
+========================================================= */
+
+document.getElementById(
+    "btnAddGroup"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        const name =
+            document.getElementById(
+                "groupNameInput"
+            ).value.trim()
+            ||
+            `مقطع ${groups.length + 1}`;
+
+
+        const color =
+            document.getElementById(
+                "groupColorInput"
+            ).value;
+
+
+        const newGroup =
+            createObjectGroup(
+                Date.now(),
+                name,
+                color
+            );
+
+
+        groups.push(
+            newGroup
+        );
+
+
+        activeGroupId =
+            newGroup.id;
+
+
+        groups.forEach(
+            g =>
+                g.selectedForGroup =
+                false
+        );
+
+
+        newGroup.selectedForGroup =
+            true;
+
+
+        document.getElementById(
+            "groupNameInput"
+        ).value = "";
+
+
+        renderGroupList();
+
+        syncGroupControls();
+
+        render2D();
+
+        update3D();
+
+    }
+);
+
+
+/* =========================================================
+   GROUP SELECT
+========================================================= */
+
+document.getElementById(
+    "btnSelectAllGroups"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        groups.forEach(
+            g =>
+                g.selectedForGroup =
+                true
+        );
+
+
+        renderGroupList();
+
+        render2D();
+
+    }
+);
+
+
+document.getElementById(
+    "btnClearGroupSelection"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        groups.forEach(
+            g =>
+                g.selectedForGroup =
+                false
+        );
+
+
+        renderGroupList();
+
+        render2D();
+
+    }
+);
+
+
+/* =========================================================
+   GROUP
+========================================================= */
+
+document.getElementById(
+    "btnGroupSelected"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        const selected =
+            groups.filter(
+                g =>
+                    g.selectedForGroup &&
+                    !g.isGroupContainer
+            );
+
+
+        if(selected.length < 2){
+
+            alert(
+                "اختر مقطعين أو أكثر."
+            );
+
+            return;
+
+        }
+
+
+        /*
+           لا نسمح بتجميع كائن داخل مجموعة
+           موجودة مسبقاً في النظام القديم.
+        */
+
+        const alreadyGrouped =
+            selected.some(
+                selectedGroup =>
+                    groups.some(
+                        container =>
+
+                            container.isGroupContainer &&
+                            container.childIds.includes(
+                                selectedGroup.id
+                            )
+                    )
+            );
+
+
+        if(alreadyGrouped){
+
+            /*
+               التحديد اليدوي أصبح يسمح للمستخدم
+               بتحديد كائنات موجودة في مجموعات مختلفة.
+               لذلك إذا كان بعضها داخل مجموعة،
+               نفك الارتباط من الحاويات القديمة
+               قبل إنشاء المجموعة الجديدة.
+
+               هذا هو الجزء المهم الذي يجعل:
+
+               كائن A داخل مجموعة 1
+               +
+               كائن B داخل مجموعة 2
+
+               يمكن جمعهما في مجموعة واحدة.
+            */
+
+            const selectedIds =
+                selected.map(
+                    g => g.id
+                );
+
+
+            groups.forEach(
+                container => {
+
+                    if(!container.isGroupContainer)
+                        return;
+
+
+                    container.childIds =
+                        container.childIds.filter(
+                            id =>
+                                !selectedIds.includes(id)
+                        );
+
+                }
+            );
+
+
+            /*
+               حذف الحاويات التي أصبحت فارغة.
+            */
+
+            groups =
+                groups.filter(
+                    g =>
+                        !g.isGroupContainer ||
+                        g.childIds.length > 0
+                );
+
+        }
+
+
+        const parentId =
+            Date.now();
+
+
+        const parent =
+            createObjectGroup(
+                parentId,
+                `مجموعة (${selected.length})`,
+                "#a855f7",
+                true,
+                selected.map(
+                    g => g.id
+                )
+            );
+
+
+        /*
+           إزالة التحديد القديم.
+        */
+
+        groups.forEach(
+            g =>
+                g.selectedForGroup =
+                false
+        );
+
+
+        groups.push(
+            parent
+        );
+
+
+        activeGroupId =
+            parent.id;
+
+
+        parent.selectedForGroup =
+            true;
+
+
+        renderGroupList();
+
+        syncGroupControls();
+
+        render2D();
+
+        update3D();
+
+    }
+);
+
+
+/* =========================================================
+   UNGROUP
+========================================================= */
+
+document.getElementById(
+    "btnUngroupSelected"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        const group =
+            groups.find(
+                g =>
+                    g.selectedForGroup &&
+                    g.isGroupContainer
+            );
+
+
+        if(!group){
+
+            alert(
+                "حدد مجموعة 📁 أولاً."
+            );
+
+            return;
+
+        }
+
+
+        const children =
+            [...group.childIds];
+
+
+        groups =
+            groups.filter(
+                g =>
+                    g.id !== group.id
+            );
+
+
+        groups.forEach(
+            g =>
+                g.selectedForGroup =
+                children.includes(g.id)
+        );
+
+
+        activeGroupId =
+            children.find(
+                id =>
+                    groups.some(
+                        g => g.id === id
+                    )
+            )
+            ||
+            groups[0].id;
+
+
+        renderGroupList();
+
+        syncGroupControls();
+
+        render2D();
+
+        update3D();
+
+    }
+);
+
+
+/* =========================================================
+   MIRROR
+========================================================= */
+
+document.getElementById(
+    "chkMirrorEnable"
+)
+.addEventListener(
+    "change",
+    e => {
+
+        const g =
+            getActiveGroup();
+
+
+        if(!g)
+            return;
+
+
+        g.mirrorEnabled =
+            e.target.checked;
+
+
+        render2D();
+
+        update3D();
+
+        renderGroupList();
+
+    }
+);
+
+
+document.getElementById(
+    "sliderMirrorDist"
+)
+.addEventListener(
+    "input",
+    e => {
+
+        const g =
+            getActiveGroup();
+
+
+        if(!g)
+            return;
+
+
+        g.mirrorDistance =
+            parseInt(
+                e.target.value
+            ) || 0;
+
+
+        document.getElementById(
+            "valMirrorDist"
+        ).innerText =
+            g.mirrorDistance + "px";
+
+
+        render2D();
+
+        update3D();
+
+    }
+);
+
+
+/* =========================================================
+   SNAP
+========================================================= */
+
+document.getElementById(
+    "chkSnapEnable"
+)
+.addEventListener(
+    "change",
+    e =>
+        snapEnabled =
+        e.target.checked
+);
+
+
+document.getElementById(
+    "numSnapPosSize"
+)
+.addEventListener(
+    "input",
+    e =>
+        snapPosStep =
+        parseInt(
+            e.target.value
+        ) || 1
+);
+
+
+/* =========================================================
+   CONTROL SYNC
+========================================================= */
+
+function syncGroupControls(){
+
+    const g =
+        getActiveGroup();
+
+
+    if(!g)
+        return;
+
+
+    document.getElementById(
+        "sliderExtrude"
+    ).value =
+        g.extrude;
+
+
+    document.getElementById(
+        "valExtrude"
+    ).innerText =
+        g.extrude + "px";
+
+
+    document.getElementById(
+        "sliderPosX"
+    ).value =
+        g.posX;
+
+
+    document.getElementById(
+        "valPosX"
+    ).innerText =
+        g.posX + "px";
+
+
+    document.getElementById(
+        "sliderPosY"
+    ).value =
+        g.posY;
+
+
+    document.getElementById(
+        "valPosY"
+    ).innerText =
+        g.posY + "px";
+
+
+    document.getElementById(
+        "sliderPosZ"
+    ).value =
+        g.posZ;
+
+
+    document.getElementById(
+        "valPosZ"
+    ).innerText =
+        g.posZ + "px";
+
+
+    document.getElementById(
+        "sliderRotY"
+    ).value =
+        g.rotY;
+
+
+    document.getElementById(
+        "valRotY"
+    ).innerText =
+        g.rotY + "°";
+
+
+    document.getElementById(
+        "chkMirrorEnable"
+    ).checked =
+        !!g.mirrorEnabled;
+
+
+    document.getElementById(
+        "sliderMirrorDist"
+    ).value =
+        g.mirrorDistance;
+
+
+    document.getElementById(
+        "valMirrorDist"
+    ).innerText =
+        g.mirrorDistance + "px";
+
+}
+
+
+/* =========================================================
+   EXTRUSION
+========================================================= */
+
+document.getElementById(
+    "sliderExtrude"
+)
+.addEventListener(
+    "input",
+    e => {
+
+        const g =
+            getActiveGroup();
+
+
+        if(!g)
+            return;
+
+
+        g.extrude =
+            parseInt(
+                e.target.value
+            );
+
+
+        document.getElementById(
+            "valExtrude"
+        ).innerText =
+            g.extrude + "px";
+
+
+        update3D();
+
+    }
+);
+
+
+/* =========================================================
+   POSITION
+========================================================= */
+
+["X","Y","Z"].forEach(
+    axis => {
+
+        document.getElementById(
+            `sliderPos${axis}`
+        )
+        .addEventListener(
+            "input",
+            e => {
+
+                const g =
+                    getActiveGroup();
+
+
+                if(!g)
+                    return;
+
+
+                const value =
+                    applySnapVal(
+                        parseInt(
+                            e.target.value
+                        ),
+                        snapPosStep
+                    );
+
+
+                g[`pos${axis}`] =
+                    value;
+
+
+                document.getElementById(
+                    `valPos${axis}`
+                ).innerText =
+                    value + "px";
+
+
+                update3DFromValues();
+
+            }
+        );
+
+    }
+);
+
+
+/* =========================================================
+   ROTATION
+========================================================= */
+
+document.getElementById(
+    "sliderRotY"
+)
+.addEventListener(
+    "input",
+    e => {
+
+        const g =
+            getActiveGroup();
+
+
+        if(!g)
+            return;
+
+
+        g.rotY =
+            parseInt(
+                e.target.value
+            );
+
+
+        document.getElementById(
+            "valRotY"
+        ).innerText =
+            g.rotY + "°";
+
+
+        update3DFromValues();
+
+    }
+);
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+document.getElementById(
+    "resetTransform"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        const g =
+            getActiveGroup();
+
+
+        if(!g)
+            return;
+
+
+        g.posX = 0;
+        g.posY = 0;
+        g.posZ = 0;
+
+
+        syncGroupControls();
+
+        update3D();
+
+    }
+);
+
+
+document.getElementById(
+    "resetRotation"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        const g =
+            getActiveGroup();
+
+
+        if(!g)
+            return;
+
+
+        g.rotY = 0;
+
+
+        syncGroupControls();
+
+        update3D();
+
+    }
+);
+
+
+document.getElementById(
+    "resetExtrude"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        const g =
+            getActiveGroup();
+
+
+        if(!g)
+            return;
+
+
+        g.extrude = 50;
+
+
+        syncGroupControls();
+
+        update3D();
+
+    }
+);
+
+
+/* =========================================================
+   UNDO
+========================================================= */
+
+document.getElementById(
+    "btnUndo"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        const g =
+            getActiveGroup();
+
+
+        if(
+            !g ||
+            g.isGroupContainer
+        )
+            return;
+
+
+        if(
+            g.activePathIndex >= 0 &&
+            g.paths[g.activePathIndex]
+        ){
+
+            const path =
+                g.paths[
+                    g.activePathIndex
+                ];
+
+
+            const removedPoint =
+                path[path.length - 1];
+
+
+            if(removedPoint)
+                removeConnectionsForPoint(
+                    removedPoint
+                );
+
+
+            path.pop();
+
+
+            if(path.length === 0){
+
+                g.paths.splice(
+                    g.activePathIndex,
+                    1
+                );
+
+
+                g.activePathIndex =
+                    g.paths.length - 1;
+
+            }
+
+        }
+
+
+        render2D();
+
+        update3D();
+
+    }
+);
+
+
+/* =========================================================
+   CLEAR CURRENT OBJECT
+========================================================= */
+
+document.getElementById(
+    "btnClearAll"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        const g =
+            getActiveGroup();
+
+
+        if(
+            !g ||
+            g.isGroupContainer
+        )
+            return;
+
+
+        if(
+            confirm(
+                "هل تريد مسح جميع خطوط المقطع الحالي؟"
+            )
+        ){
+
+            const points =
+                getAllPoints(g);
+
+
+            points.forEach(
+                item =>
+                    removeConnectionsForPoint(
+                        item.point
+                    )
+            );
+
+
+            g.paths = [];
+
+            g.activePathIndex = -1;
+
+
+            render2D();
+
+            update3D();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   3D
+========================================================= */
+
+const container3D =
+    document.getElementById(
+        "threeContainer"
+    );
+
+
+let scene;
+let camera;
+let renderer;
+let controls;
+let transformControls;
+
+
+const meshMap =
+    new Map();
+
+
+function init3D(){
+
+    scene =
+        new THREE.Scene();
+
+
+    scene.background =
+        new THREE.Color(
+            0x0f172a
+        );
+
+
+    camera =
+        new THREE.PerspectiveCamera(
+            45,
+            container3D.clientWidth /
+            container3D.clientHeight,
+            1,
+            5000
+        );
+
+
+    camera.position.set(
+        0,
+        0,
+        800
+    );
+
+
+    renderer =
+        new THREE.WebGLRenderer({
+            antialias: true
+        });
+
+
+    renderer.setSize(
+        container3D.clientWidth,
+        container3D.clientHeight
+    );
+
+
+    renderer.shadowMap.enabled =
+        true;
+
+
+    container3D.appendChild(
+        renderer.domElement
+    );
+
+
+    controls =
+        new THREE.OrbitControls(
+            camera,
+            renderer.domElement
+        );
+
+
+    controls.enableDamping =
+        true;
+
+
+    transformControls =
+        new THREE.TransformControls(
+            camera,
+            renderer.domElement
+        );
+
+
+    transformControls.size =
+        0.75;
+
+
+    scene.add(
+        transformControls
+    );
+
+
+    transformControls.addEventListener(
+        "dragging-changed",
+        event => {
+
+            controls.enabled =
+                !event.value;
+
+        }
+    );
+
+
+    transformControls.addEventListener(
+        "change",
+        () => {
+
+            const g =
+                getActiveGroup();
+
+
+            if(!g)
+                return;
+
+
+            const object =
+                meshMap.get(
+                    g.id
+                );
+
+
+            if(object){
+
+                g.posX =
+                    Math.round(
+                        object.position.x
+                    );
+
+
+                g.posY =
+                    Math.round(
+                        -object.position.y
+                    );
+
+
+                g.posZ =
+                    Math.round(
+                        object.position.z
+                    );
+
+
+                g.rotY =
+                    Math.round(
+                        THREE.MathUtils.radToDeg(
+                            object.rotation.y
+                        )
+                    );
+
+
+                syncGroupControls();
+
+                render2D();
+
+            }
+
+        }
+    );
+
+
+    scene.add(
+        new THREE.AmbientLight(
+            0xffffff,
+            0.7
+        )
+    );
+
+
+    const dirLight =
+        new THREE.DirectionalLight(
+            0xffffff,
+            0.8
+        );
+
+
+    dirLight.position.set(
+        500,
+        1000,
+        500
+    );
+
+
+    scene.add(
+        dirLight
+    );
+
+
+    const gridHelper =
+        new THREE.GridHelper(
+            1000,
+            50,
+            0x38bdf8,
+            0x334155
+        );
+
+
+    gridHelper.position.y =
+        -200;
+
+
+    scene.add(
+        gridHelper
+    );
+
+
+    animate3D();
+
+    renderGroupList();
+
+    syncGroupControls();
+
+}
+
+
+/* =========================================================
+   ANIMATE
+========================================================= */
+
+function animate3D(){
+
+    requestAnimationFrame(
+        animate3D
+    );
+
+
+    controls.update();
+
+
+    renderer.render(
+        scene,
+        camera
+    );
+
+}
+
+
+/* =========================================================
+   TRANSFORM ACTIVE
+========================================================= */
+
+function attachTransformToActive(){
+
+    if(!transformControls)
+        return;
+
+
+    const g =
+        getActiveGroup();
+
+
+    if(
+        g &&
+        meshMap.has(g.id)
+    ){
+
+        transformControls.attach(
+            meshMap.get(g.id)
+        );
+
+
+        transformControls.enabled =
+            mode === "drag3d";
+
+    }
+    else{
+
+        transformControls.detach();
+
+    }
+
+}
+
+
+/* =========================================================
+   UPDATE TRANSFORM
+========================================================= */
+
+function update3DFromValues(){
+
+    const g =
+        getActiveGroup();
+
+
+    if(!g)
+        return;
+
+
+    const object =
+        meshMap.get(
+            g.id
+        );
+
+
+    if(object){
+
+        object.position.set(
+            g.posX,
+            -g.posY,
+            g.posZ
+        );
+
+
+        object.rotation.y =
+            THREE.MathUtils.degToRad(
+                g.rotY
+            );
+
+    }
+
+
+    render2D();
+
+}
+
+
+/* =========================================================
+   SHAPE
+========================================================= */
+
+function buildPathShape(
+    path,
+    mirrored,
+    group
+){
+
+    if(path.length < 2)
+        return null;
+
+
+    const shape =
+        new THREE.Shape();
+
+
+    const scale = 400;
+
+
+    path.forEach(
+        (p, index) => {
+
+            let px =
+                p.x;
+
+
+            if(mirrored)
+                px =
+                    1 - px;
+
+
+            const x =
+                (px - 0.5) *
+                scale
+                +
+                (
+                    mirrored
+                    ? group.mirrorDistance * 0.5
+                    : 0
+                );
+
+
+            const y =
+                -(p.y - 0.5) *
+                scale;
+
+
+            if(index === 0)
+                shape.moveTo(
+                    x,
+                    y
+                );
+            else
+                shape.lineTo(
+                    x,
+                    y
+                );
+
+        }
+    );
+
+
+    if(path.length >= 3)
+        shape.closePath();
+
+
+    return shape;
+
+}
+
+
+/* =========================================================
+   CREATE PATH OBJECT
+========================================================= */
+
+function createObjectFromPath(
+    group,
+    path,
+    mirrored = false
+){
+
+    const shape =
+        buildPathShape(
+            path,
+            mirrored,
+            group
+        );
+
+
+    if(!shape)
+        return null;
+
+
+    if(view3DMode === "lines"){
+
+        const points =
+            shape.getPoints();
+
+
+        const geometry =
+            new THREE.BufferGeometry()
+            .setFromPoints(
+                points.map(
+                    p =>
+                        new THREE.Vector3(
+                            p.x,
+                            p.y,
+                            0
+                        )
+                )
+            );
+
+
+        const material =
+            new THREE.LineBasicMaterial({
+                color:
+                    group.color
             });
 
-            if (mode === 'drag3d') attachTransformToActive();
-        }
 
-        function createMeshFromGroup(group, isMirrored = false) {
-            const shape = buildGroupShape(group, isMirrored);
-            if (!shape) return null;
+        return new THREE.Line(
+            geometry,
+            material
+        );
 
-            if (view3DMode === 'lines') {
-                const points = shape.getPoints();
-                const geometry = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(p.x, p.y, 0)));
-                const material = new THREE.LineBasicMaterial({ color: group.color });
-                return new THREE.Line(geometry, material);
-            } else if (view3DMode === 'mesh') {
-                const extrudeSettings = {
+    }
+
+
+    if(view3DMode === "mesh"){
+
+        const geometry =
+            new THREE.ExtrudeGeometry(
+                shape,
+                {
+
                     steps: 1,
-                    depth: group.extrude,
-                    bevelEnabled: true,
-                    bevelThickness: 3,
-                    bevelSize: 2,
-                    bevelSegments: 3
-                };
-                const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-                geometry.center();
-                const material = new THREE.MeshStandardMaterial({
-                    color: group.color,
-                    roughness: 0.3,
-                    metalness: 0.2
-                });
-                return new THREE.Mesh(geometry, material);
-            } else if (view3DMode === 'slices') {
-                const sliceGroup = new THREE.Group();
-                const count = 10;
-                const stepDist = group.extrude / count;
-                for (let i = 0; i < count; i++) {
-                    const points = shape.getPoints();
-                    const geometry = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(p.x, p.y, (i - count / 2) * stepDist)));
-                    const material = new THREE.LineBasicMaterial({ color: group.color });
-                    const line = new THREE.Line(geometry, material);
-                    sliceGroup.add(line);
+
+                    depth:
+                        group.extrude,
+
+                    bevelEnabled:
+                        true,
+
+                    bevelThickness:
+                        3,
+
+                    bevelSize:
+                        2,
+
+                    bevelSegments:
+                        3
+
                 }
-                return sliceGroup;
-            }
-            return null;
+            );
+
+
+        geometry.center();
+
+
+        const material =
+            new THREE.MeshStandardMaterial({
+
+                color:
+                    group.color,
+
+                roughness:
+                    0.3,
+
+                metalness:
+                    0.2
+
+            });
+
+
+        return new THREE.Mesh(
+            geometry,
+            material
+        );
+
+    }
+
+
+    if(view3DMode === "wireframe"){
+
+        const geometry =
+            new THREE.ExtrudeGeometry(
+                shape,
+                {
+
+                    steps: 1,
+
+                    depth:
+                        group.extrude,
+
+                    bevelEnabled:
+                        true,
+
+                    bevelThickness:
+                        3,
+
+                    bevelSize:
+                        2,
+
+                    bevelSegments:
+                        3
+
+                }
+            );
+
+
+        geometry.center();
+
+
+        const material =
+            new THREE.MeshBasicMaterial({
+
+                color:
+                    group.color,
+
+                wireframe:
+                    true
+
+            });
+
+
+        return new THREE.Mesh(
+            geometry,
+            material
+        );
+
+    }
+
+
+    if(view3DMode === "slices"){
+
+        const sliceGroup =
+            new THREE.Group();
+
+
+        const count = 10;
+
+
+        const stepDist =
+            group.extrude /
+            count;
+
+
+        const points =
+            shape.getPoints();
+
+
+        for(
+            let i = 0;
+            i < count;
+            i++
+        ){
+
+            const geometry =
+                new THREE.BufferGeometry()
+                .setFromPoints(
+                    points.map(
+                        p =>
+                            new THREE.Vector3(
+                                p.x,
+                                p.y,
+                                (
+                                    i -
+                                    count / 2
+                                ) *
+                                stepDist
+                            )
+                    )
+                );
+
+
+            const material =
+                new THREE.LineBasicMaterial({
+                    color:
+                        group.color
+                });
+
+
+            sliceGroup.add(
+                new THREE.Line(
+                    geometry,
+                    material
+                )
+            );
+
         }
 
-        init3D();
-    </script>
+
+        return sliceGroup;
+
+    }
+
+
+    return null;
+
+}
+
+
+/* =========================================================
+   CONNECTION 3D
+========================================================= */
+
+function pointToLocal3D(point){
+
+    const scale = 400;
+
+
+    return new THREE.Vector3(
+
+        (point.x - 0.5) *
+        scale,
+
+        -(point.y - 0.5) *
+        scale,
+
+        0
+
+    );
+
+}
+
+
+function getPointWorld3D(
+    point,
+    group
+){
+
+    const local =
+        pointToLocal3D(
+            point
+        );
+
+
+    const object =
+        new THREE.Object3D();
+
+
+    object.position.set(
+        group.posX,
+        -group.posY,
+        group.posZ
+    );
+
+
+    object.rotation.y =
+        THREE.MathUtils.degToRad(
+            group.rotY
+        );
+
+
+    object.updateMatrixWorld(
+        true
+    );
+
+
+    return local.applyMatrix4(
+        object.matrixWorld
+    );
+
+}
+
+
+function buildConnections3D(){
+
+    const root =
+        new THREE.Group();
+
+
+    pointConnections.forEach(
+        connection => {
+
+            const groupA =
+                groups.find(
+                    g =>
+                        g.id === connection.groupA
+                );
+
+
+            const groupB =
+                groups.find(
+                    g =>
+                        g.id === connection.groupB
+                );
+
+
+            if(!groupA || !groupB)
+                return;
+
+
+            if(
+                !connection.pointA ||
+                !connection.pointB
+            )
+                return;
+
+
+            const a =
+                getPointWorld3D(
+                    connection.pointA,
+                    groupA
+                );
+
+
+            const b =
+                getPointWorld3D(
+                    connection.pointB,
+                    groupB
+                );
+
+
+            const geometry =
+                new THREE.BufferGeometry()
+                .setFromPoints([
+                    a,
+                    b
+                ]);
+
+
+            const material =
+                new THREE.LineBasicMaterial({
+                    color:
+                        0xa855f7
+                });
+
+
+            root.add(
+                new THREE.Line(
+                    geometry,
+                    material
+                )
+            );
+
+        }
+    );
+
+
+    return root;
+
+}
+
+
+/* =========================================================
+   UPDATE 3D
+========================================================= */
+
+function update3D(){
+
+    meshMap.forEach(
+        object => {
+
+            scene.remove(
+                object
+            );
+
+        }
+    );
+
+
+    meshMap.clear();
+
+
+    const oldConnections =
+        scene.getObjectByName(
+            "pointConnections3D"
+        );
+
+
+    if(oldConnections)
+        scene.remove(
+            oldConnections
+        );
+
+
+    groups.forEach(
+        group => {
+
+            const root =
+                new THREE.Group();
+
+
+            if(group.isGroupContainer){
+
+                group.childIds.forEach(
+                    childId => {
+
+                        const child =
+                            groups.find(
+                                g =>
+                                    g.id === childId
+                            );
+
+
+                        if(!child)
+                            return;
+
+
+                        const childRoot =
+                            buildGroup3D(
+                                child
+                            );
+
+
+                        if(childRoot){
+
+                            childRoot.position.set(
+                                child.posX,
+                                -child.posY,
+                                child.posZ
+                            );
+
+
+                            childRoot.rotation.y =
+                                THREE.MathUtils.degToRad(
+                                    child.rotY
+                                );
+
+
+                            root.add(
+                                childRoot
+                            );
+
+                        }
+
+                    }
+                );
+
+            }
+            else{
+
+                const object =
+                    buildGroup3D(
+                        group
+                    );
+
+
+                if(object)
+                    root.add(
+                        object
+                    );
+
+            }
+
+
+            root.position.set(
+                group.posX,
+                -group.posY,
+                group.posZ
+            );
+
+
+            root.rotation.y =
+                THREE.MathUtils.degToRad(
+                    group.rotY
+                );
+
+
+            scene.add(
+                root
+            );
+
+
+            meshMap.set(
+                group.id,
+                root
+            );
+
+        }
+    );
+
+
+    const connections3D =
+        buildConnections3D();
+
+
+    connections3D.name =
+        "pointConnections3D";
+
+
+    scene.add(
+        connections3D
+    );
+
+
+    if(mode === "drag3d")
+        attachTransformToActive();
+
+}
+
+
+/* =========================================================
+   BUILD GROUP 3D
+========================================================= */
+
+function buildGroup3D(group){
+
+    if(
+        !group ||
+        group.isGroupContainer
+    )
+        return null;
+
+
+    const root =
+        new THREE.Group();
+
+
+    group.paths.forEach(
+        path => {
+
+            if(path.length < 2)
+                return;
+
+
+            const normal =
+                createObjectFromPath(
+                    group,
+                    path,
+                    false
+                );
+
+
+            if(normal)
+                root.add(
+                    normal
+                );
+
+
+            if(group.mirrorEnabled){
+
+                const mirror =
+                    createObjectFromPath(
+                        group,
+                        path,
+                        true
+                    );
+
+
+                if(mirror)
+                    root.add(
+                        mirror
+                    );
+
+            }
+
+        }
+    );
+
+
+    return root;
+
+}
+
+
+/* =========================================================
+   3D VIEW
+========================================================= */
+
+window.set3DViewMode =
+function(vMode){
+
+    view3DMode =
+        vMode;
+
+
+    const buttons = {
+
+        lines:
+            document.getElementById(
+                "viewOptLines"
+            ),
+
+        mesh:
+            document.getElementById(
+                "viewOptMesh"
+            ),
+
+        slices:
+            document.getElementById(
+                "viewOptSlices"
+            ),
+
+        wireframe:
+            document.getElementById(
+                "viewOptWireframe"
+            )
+
+    };
+
+
+    Object.keys(buttons)
+    .forEach(
+        key => {
+
+            buttons[key].className =
+                view3DMode === key
+
+                ?
+
+                "bg-sky-600 px-2 py-1 rounded text-xs font-bold text-white"
+
+                :
+
+                "bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-xs font-bold text-slate-300";
+
+        }
+    );
+
+
+    update3D();
+
+};
+
+
+/* =========================================================
+   CAMERA
+========================================================= */
+
+document.getElementById(
+    "btnOrientVert"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        camera.position.set(
+            0,
+            0,
+            800
+        );
+
+
+        camera.lookAt(
+            0,
+            0,
+            0
+        );
+
+
+        controls.update();
+
+    }
+);
+
+
+document.getElementById(
+    "btnOrientHoriz"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        camera.position.set(
+            0,
+            800,
+            0
+        );
+
+
+        camera.lookAt(
+            0,
+            0,
+            0
+        );
+
+
+        controls.update();
+
+    }
+);
+
+
+/* =========================================================
+   FULLSCREEN
+========================================================= */
+
+document.getElementById(
+    "btnFullscreen"
+)
+.addEventListener(
+    "click",
+    () => {
+
+        if(!document.fullscreenElement){
+
+            document.documentElement
+                .requestFullscreen()
+                .catch(
+                    () => {}
+                );
+
+        }
+        else{
+
+            document.exitFullscreen();
+
+        }
+
+    }
+);
+
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+init3D();
+
+render2D();
+
+syncGroupControls();
+
+</script>
+
 </body>
 </html>
+```
