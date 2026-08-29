@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3D Blueprint Builder - Mirror Fixed</title>
+<title>3D Blueprint Builder - Mirror & Merge Fixed</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -378,29 +378,32 @@ function detachGroupFromContainers(groupId){
     groups = groups.filter(g => !g.isGroupContainer || g.childIds.length > 0);
 }
 
+/* =========================================================
+   MERGE GROUPS AT POINTS - FIXED (المشكلة 1 و 2)
+========================================================= */
+
 function mergeGroupsAtPoints(first, second){
     if(!first || !second) return false;
     const groupA = first.group;
     const groupB = second.group;
 
+    // حساب الفارق النسبي بدقة لتجنب التداخل العشوائي
     const dx = first.point.x - second.point.x;
     const dy = first.point.y - second.point.y;
 
     groupB.paths.forEach(path => {
         path.forEach(point => {
-            point.x += dx;
-            point.y += dy;
+            if(point !== second.point){
+                point.x += dx;
+                point.y += dy;
+            }
         });
     });
 
-    const pathB = second.path;
-    const idxB = second.pointIndex;
-    
-    first.point.isMergedPoint = true;
-    first.point.joinedColor = groupA.color;
-    pathB[idxB] = first.point;
-
-    alignGroupPointToPoint(groupB, second.point, groupA, first.point);
+    second.point.x = first.point.x;
+    second.point.y = first.point.y;
+    second.point.isMergedPoint = true;
+    second.point.joinedColor = groupA.color;
 
     detachGroupFromContainers(groupA.id);
     detachGroupFromContainers(groupB.id);
@@ -408,12 +411,9 @@ function mergeGroupsAtPoints(first, second){
     const mergedId = Date.now() + Math.floor(Math.random() * 1000);
     const merged = createObjectGroup(mergedId, `دمج: ${groupA.name} + ${groupB.name}`, groupA.color, true, [groupA.id, groupB.id]);
 
-    merged.posX = 0;
-    merged.posY = 0;
-    merged.posZ = 0;
-    merged.rotX = 0;
-    merged.rotY = 0;
-    merged.rotZ = 0;
+    // الحفاظ على إعدادات المرآة للمجموعات المدمجة
+    merged.mirrorEnabled = groupA.mirrorEnabled || groupB.mirrorEnabled;
+    merged.mirrorDistance = groupA.mirrorDistance || groupB.mirrorDistance;
 
     groups.push(merged);
 
@@ -1429,7 +1429,7 @@ document.getElementById("sliderMirrorDist").addEventListener("input", e => {
     g.mirrorDistance = value;
     document.getElementById("numMirrorDist").value = value;
     render2D();
-    update3D(); // تحديث المشهد ثلاثي الأبعاد ليعكس مسافة المرآة الجديدة فوراً
+    update3D();
 });
 
 // تغيير مسافة المرآة - حقل الرقم (مع تحديث فوري)
@@ -1442,7 +1442,7 @@ document.getElementById("numMirrorDist").addEventListener("input", e => {
     g.mirrorDistance = value;
     document.getElementById("sliderMirrorDist").value = value;
     render2D();
-    update3D(); // تحديث المشهد ثلاثي الأبعاد ليعكس مسافة المرآة الجديدة فوراً
+    update3D();
 });
 
 /* =========================================================
@@ -1739,7 +1739,6 @@ function buildPathShape(path, mirrored, group){
         if(mirrored) {
             px = 1 - p.x;
         }
-        // لا نطبق إزاحة المرآة هنا، بل سنطبقها في buildGroup3D
         const x = (px - 0.5) * scale;
         const y = -(p.y - 0.5) * scale;
         if(index === 0) shape.moveTo(x, y);
@@ -2029,9 +2028,8 @@ function buildGroup3D(group){
         if(group.mirrorEnabled){
             const mirror = createObjectFromPath(group, path, true);
             if(mirror){
-                // إنشاء مجموعة فرعية للمرآة لتتحرك بناءً على قيمة mirrorDistance ديناميكياً
                 const mirrorGroup = new THREE.Group();
-                mirrorGroup.position.x = group.mirrorDistance * 0.5; // تحريك المرآة بناءً على المسافة
+                mirrorGroup.position.x = group.mirrorDistance * 0.5;
                 mirrorGroup.add(mirror);
                 root.add(mirrorGroup);
             }
@@ -2042,7 +2040,7 @@ function buildGroup3D(group){
 }
 
 /* =========================================================
-   UPDATE 3D - يعيد بناء كل شيء مع مراعاة المرآة
+   UPDATE 3D - يعيد بناء كل شيء مع مراعاة المرآة ونقلها للمجموعات المدمجة
 ========================================================= */
 
 function update3D(){
@@ -2070,6 +2068,16 @@ function update3D(){
             group.childIds.forEach(childId => {
                 const child = groups.find(g => g.id === childId);
                 if(!child) return;
+                
+                // نقل حالة المرآة من الحاوية للأبناء إن لم تكن مفعلة مسبقاً
+                if(!child.mirrorEnabled && group.mirrorEnabled){
+                    child.mirrorEnabled = true;
+                    child.mirrorDistance = group.mirrorDistance;
+                } else if(group.mirrorEnabled) {
+                    child.mirrorEnabled = true;
+                    child.mirrorDistance = group.mirrorDistance;
+                }
+
                 const childRoot = buildGroup3D(child);
                 if(childRoot){
                     childRoot.position.set(child.posX, -child.posY, child.posZ);
