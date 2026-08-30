@@ -1726,22 +1726,31 @@ function update3DFromValues(){
 }
 
 /* =========================================================
-   BUILD PATH SHAPE - بدون إزاحة المرآة (تُطبق لاحقاً في buildGroup3D)
+   BUILD PATH SHAPE - تم إصلاح التوحيد بين الـ 2D والـ 3D
 ========================================================= */
 
 function buildPathShape(path, mirrored, group){
     if(path.length < 2) return null;
     const shape = new THREE.Shape();
-    const scale = 400;
+    
+    // استخدام أبعاد الـ Canvas الحالية لتوحيد النطاق
+    const canvasW = canvas.width;
+    const canvasH = canvas.height;
+    const scale = 400; // معامل ثابت للتحجيم
+    
+    // معامل التحجيم المحسوب بناءً على أبعاد الـ Canvas
+    const scaleX = (1 / canvasW) * scale;
+    const scaleY = (1 / canvasH) * scale;
 
     path.forEach((p, index) => {
         let px = p.x;
         if(mirrored) {
             px = 1 - p.x;
         }
-        // لا نطبق إزاحة المرآة هنا، بل سنطبقها في buildGroup3D
-        const x = (px - 0.5) * scale;
-        const y = -(p.y - 0.5) * scale;
+        // تحويل الإحداثيات من نسبة (0-1) إلى إحداثيات Three.js مع مركزية
+        const x = (px - 0.5) * canvasW * scaleX;
+        const y = -(p.y - 0.5) * canvasH * scaleY;
+        
         if(index === 0) shape.moveTo(x, y);
         else shape.lineTo(x, y);
     });
@@ -1920,8 +1929,12 @@ function createObjectFromPath(group, path, mirrored = false){
 ========================================================= */
 
 function pointToLocal3D(point){
+    const canvasW = canvas.width;
+    const canvasH = canvas.height;
     const scale = 400;
-    return new THREE.Vector3((point.x - 0.5) * scale, -(point.y - 0.5) * scale, 0);
+    const scaleX = (1 / canvasW) * scale;
+    const scaleY = (1 / canvasH) * scale;
+    return new THREE.Vector3((point.x - 0.5) * canvasW * scaleX, -(point.y - 0.5) * canvasH * scaleY, 0);
 }
 
 function getPointWorld3D(point, group){
@@ -1935,10 +1948,14 @@ function getPointWorld3D(point, group){
 
 function alignGroupPointToPoint(sourceGroup, sourcePoint, targetGroup, targetPoint){
     if(!sourceGroup || !sourcePoint || !targetGroup || !targetPoint) return;
+    const canvasW = canvas.width;
+    const canvasH = canvas.height;
     const scale = 400;
+    const scaleX = (1 / canvasW) * scale;
+    const scaleY = (1 / canvasH) * scale;
 
-    const localSource = pointToLocal3D(sourcePoint);
-    const localTarget = pointToLocal3D(targetPoint);
+    const localSource = new THREE.Vector3((sourcePoint.x - 0.5) * canvasW * scaleX, -(sourcePoint.y - 0.5) * canvasH * scaleY, 0);
+    const localTarget = new THREE.Vector3((targetPoint.x - 0.5) * canvasW * scaleX, -(targetPoint.y - 0.5) * canvasH * scaleY, 0);
 
     const sourceRot = new THREE.Matrix4().makeRotationY(THREE.MathUtils.degToRad(sourceGroup.rotY || 0));
     const targetRot = new THREE.Matrix4().makeRotationY(THREE.MathUtils.degToRad(targetGroup.rotY || 0));
